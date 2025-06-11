@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,10 +27,10 @@ const LogisticsShipping = () => {
     search: searchTerm 
   });
 
-  // Extract orders from data wrapper
-  const processingOrders = processingData?.orders || [];
-  const shippedOrders = shippedData?.orders || [];
-  const onHoldOrders = onHoldData?.orders || [];
+  // Extract orders from data wrapper - fix the property access
+  const processingOrders = processingData?.data || [];
+  const shippedOrders = shippedData?.data || [];
+  const onHoldOrders = onHoldData?.data || [];
 
   const updateOrderMutation = useUpdateOrder();
 

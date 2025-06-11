@@ -1,4 +1,3 @@
-
 import { WooCommerceConfig } from '../types/woocommerce';
 
 export interface WooCommerceOrder {
@@ -207,6 +206,7 @@ class WooCommerceService {
     const updateData = {
       meta_data: [
         {
+          id: 0, // WooCommerce will assign the actual ID
           key,
           value: trackingNumber,
         }

@@ -16,8 +16,11 @@ const InventoryManagement = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [newStock, setNewStock] = useState('');
 
-  const { data: products, isLoading, refetch } = useProducts({ search: searchTerm });
+  const { data: productsResponse, isLoading, refetch } = useProducts({ search: searchTerm });
   const updateProductMutation = useUpdateProduct();
+
+  // Extract products array from response
+  const products = productsResponse?.data || [];
 
   const getStockStatus = (product: any) => {
     if (product.stock_status === 'outofstock' || product.stock_quantity === 0) {
@@ -66,8 +69,8 @@ const InventoryManagement = () => {
     );
   }
 
-  const lowStockProducts = products?.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5) || [];
-  const outOfStockProducts = products?.filter(p => p.stock_quantity === 0 || p.stock_status === 'outofstock') || [];
+  const lowStockProducts = products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5);
+  const outOfStockProducts = products.filter(p => p.stock_quantity === 0 || p.stock_status === 'outofstock');
 
   return (
     <div className="p-6 space-y-6">
@@ -160,7 +163,7 @@ const InventoryManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products?.map((product) => {
+              {products.map((product) => {
                 const stockStatus = getStockStatus(product);
                 return (
                   <TableRow key={product.id}>

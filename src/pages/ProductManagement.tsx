@@ -20,18 +20,23 @@ const ProductManagement = () => {
   const [productStock, setProductStock] = useState('');
   const [productSku, setProductSku] = useState('');
 
-  const { data: activeProducts, isLoading: activeLoading, refetch: refetchActive } = useProducts({ 
+  const { data: activeProductsResponse, isLoading: activeLoading, refetch: refetchActive } = useProducts({ 
     status: 'publish', 
     search: searchTerm 
   });
-  const { data: outOfStockProducts, isLoading: outOfStockLoading } = useProducts({ 
+  const { data: outOfStockResponse, isLoading: outOfStockLoading } = useProducts({ 
     stock_status: 'outofstock',
     search: searchTerm 
   });
-  const { data: draftProducts, isLoading: draftLoading } = useProducts({ 
+  const { data: draftProductsResponse, isLoading: draftLoading } = useProducts({ 
     status: 'draft',
     search: searchTerm 
   });
+
+  // Extract products arrays from responses
+  const activeProducts = activeProductsResponse?.data || [];
+  const outOfStockProducts = outOfStockResponse?.data || [];
+  const draftProducts = draftProductsResponse?.data || [];
 
   const updateProductMutation = useUpdateProduct();
 
@@ -265,13 +270,13 @@ const ProductManagement = () => {
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="active" className="flex items-center gap-2">
-            Active <Badge variant="secondary">{activeProducts?.length || 0}</Badge>
+            Active <Badge variant="secondary">{activeProducts.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="outOfStock" className="flex items-center gap-2">
-            Out of Stock <Badge variant="destructive">{outOfStockProducts?.length || 0}</Badge>
+            Out of Stock <Badge variant="destructive">{outOfStockProducts.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="draft" className="flex items-center gap-2">
-            Draft <Badge variant="secondary">{draftProducts?.length || 0}</Badge>
+            Draft <Badge variant="secondary">{draftProducts.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -282,7 +287,7 @@ const ProductManagement = () => {
               <CardDescription>Published products available for sale</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProductTable products={activeProducts || []} isLoading={activeLoading} />
+              <ProductTable products={activeProducts} isLoading={activeLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -294,7 +299,7 @@ const ProductManagement = () => {
               <CardDescription>Products that need restocking</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProductTable products={outOfStockProducts || []} isLoading={outOfStockLoading} />
+              <ProductTable products={outOfStockProducts} isLoading={outOfStockLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -306,7 +311,7 @@ const ProductManagement = () => {
               <CardDescription>Unpublished products</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProductTable products={draftProducts || []} isLoading={draftLoading} />
+              <ProductTable products={draftProducts} isLoading={draftLoading} />
             </CardContent>
           </Card>
         </TabsContent>
