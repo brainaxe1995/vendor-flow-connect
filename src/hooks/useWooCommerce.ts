@@ -390,8 +390,8 @@ export const useCustomerAcquisition = (dateRange?: { date_min?: string; date_max
 
 // Category sales data
 export const useCategorySales = (dateRange?: { date_min?: string; date_max?: string }) => {
-  const { data: categoriesResponse } = useCategories();
-  const { data: ordersResponse } = useOrders({
+  const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
+  const { data: ordersResponse, isLoading: ordersLoading } = useOrders({
     per_page: 1000,
     after: dateRange?.date_min,
     before: dateRange?.date_max
@@ -399,6 +399,7 @@ export const useCategorySales = (dateRange?: { date_min?: string; date_max?: str
 
   const categories = categoriesResponse?.data || [];
   const orders = ordersResponse?.data || [];
+  const isLoading = categoriesLoading || ordersLoading;
 
   const categorySales = categories.map(category => {
     const categoryOrders = orders.filter(order => 
@@ -418,7 +419,7 @@ export const useCategorySales = (dateRange?: { date_min?: string; date_max?: str
     };
   }).filter(item => item.value > 0);
 
-  return { data: categorySales };
+  return { data: categorySales, isLoading };
 };
 
 export const useNotifications = () => {

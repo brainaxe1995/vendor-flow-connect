@@ -1,4 +1,3 @@
-
 export const getDateRange = (period: string) => {
   const now = new Date();
   const endDate = now.toISOString();
@@ -34,7 +33,12 @@ export const formatDateForChart = (dateString: string) => {
   });
 };
 
-export const groupDataByPeriod = (data: any[], dateField: string, period: 'day' | 'week' | 'month') => {
+export const groupDataByPeriod = (data: unknown[], dateField: string, period: 'day' | 'week' | 'month') => {
+  // Ensure data is an array
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
   const grouped = data.reduce((acc, item) => {
     const date = new Date(item[dateField]);
     let key: string;
