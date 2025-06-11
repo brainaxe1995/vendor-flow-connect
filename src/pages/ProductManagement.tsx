@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -72,6 +71,10 @@ const ProductManagement = () => {
       toast.error('Failed to update product');
       console.error('Update product error:', error);
     }
+  };
+
+  const handleRefreshClick = () => {
+    refetchActive();
   };
 
   const ProductTable = ({ products, isLoading }: { products: any[], isLoading: boolean }) => {
@@ -252,7 +255,7 @@ const ProductManagement = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" onClick={refetchActive}>
+          <Button variant="outline" onClick={handleRefreshClick}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>

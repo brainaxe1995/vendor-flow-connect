@@ -1,4 +1,3 @@
-
 import { WooCommerceConfig } from '../types/woocommerce';
 
 export interface WooCommerceOrder {
@@ -180,6 +179,7 @@ class WooCommerceService {
     const updateData = {
       meta_data: [
         {
+          id: 0, // WooCommerce will assign the actual ID
           key,
           value: trackingNumber,
         }
@@ -235,7 +235,7 @@ class WooCommerceService {
   } = {}): Promise<any> {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value) queryParams.append(key, value);
+      if (value) queryParams.append(key, String(value));
     });
     
     const endpoint = `/reports/orders?${queryParams.toString()}`;
@@ -334,3 +334,5 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
+
+}

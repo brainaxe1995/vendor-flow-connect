@@ -70,6 +70,7 @@ const LogisticsShipping = () => {
         data: {
           meta_data: [
             {
+              id: 0, // WooCommerce will assign the actual ID
               key: '_tracking_number',
               value: trackingInput.trim()
             }
