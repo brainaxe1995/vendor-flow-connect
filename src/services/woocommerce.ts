@@ -637,5 +637,3 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
-
-}
