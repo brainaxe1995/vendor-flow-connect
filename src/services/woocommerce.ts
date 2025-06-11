@@ -1,4 +1,3 @@
-
 import { WooCommerceConfig } from '../types/woocommerce';
 
 export interface WooCommerceOrder {
@@ -216,7 +215,7 @@ class WooCommerceService {
     });
   }
 
-  // Enhanced tracking update with dynamic meta key detection
+  // Enhanced tracking update with proper metadata handling
   async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey?: string): Promise<WooCommerceOrder> {
     let detectedKey = trackingKey;
     
@@ -235,17 +234,38 @@ class WooCommerceService {
       }
     }
     
-    const updateData = {
-      meta_data: [
-        {
-          key: detectedKey,
-          value: trackingNumber,
-        }
-      ],
-    };
+    // Get the current order to check for existing metadata
+    const currentOrder = await this.getOrder(orderId);
+    const existingMeta = currentOrder.meta_data.find(meta => meta.key === detectedKey);
+    
+    let updateData;
+    
+    if (existingMeta) {
+      // Update existing metadata with proper id
+      updateData = {
+        meta_data: [
+          {
+            id: existingMeta.id,
+            key: detectedKey,
+            value: trackingNumber,
+          }
+        ],
+      };
+    } else {
+      // For new metadata, we use a different approach - just the key/value without id
+      // WooCommerce will auto-assign an id when creating new metadata
+      updateData = {
+        meta_data: [
+          {
+            key: detectedKey,
+            value: trackingNumber,
+          }
+        ],
+      };
+    }
     
     console.log('Updating tracking for order:', orderId, 'with key:', detectedKey, 'value:', trackingNumber);
-    return this.updateOrder(orderId, updateData);
+    return this.updateOrder(orderId, updateData as Partial<WooCommerceOrder>);
   }
 
   // Products API with pagination
@@ -392,3 +412,5 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
+
+}
