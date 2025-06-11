@@ -6,11 +6,13 @@ import { useAuth } from '../contexts/AuthContext';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: 'supplier' | 'admin';
+  allowedRoles?: Array<'supplier' | 'admin'>;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requiredRole 
+  requiredRole,
+  allowedRoles 
 }) => {
   const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
@@ -36,9 +38,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access if required
-  if (requiredRole && user.role !== requiredRole) {
-    console.log(`Access denied. Required: ${requiredRole}, User role: ${user.role}`);
+  // Check role-based access
+  const hasAccess = () => {
+    if (requiredRole) {
+      return user.role === requiredRole;
+    }
+    
+    if (allowedRoles) {
+      return allowedRoles.includes(user.role as 'supplier' | 'admin');
+    }
+    
+    // Default: allow all authenticated users
+    return true;
+  };
+
+  if (!hasAccess()) {
+    console.log(`Access denied. User role: ${user.role}, Required: ${requiredRole || allowedRoles?.join(', ')}`);
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 max-w-md">
@@ -47,7 +62,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             <h1 className="text-2xl font-bold">Access Denied</h1>
             <p className="text-muted-foreground">
               You don't have permission to access this area. 
-              Required role: {requiredRole}, Your role: {user.role}
+              {requiredRole && `Required role: ${requiredRole}, Your role: ${user.role}`}
+              {allowedRoles && `Allowed roles: ${allowedRoles.join(', ')}, Your role: ${user.role}`}
             </p>
           </div>
         </div>

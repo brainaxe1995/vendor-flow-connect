@@ -29,25 +29,43 @@ const SupplierLayout = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const navigationItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', badge: null },
-    { icon: Package, label: 'Order Management', path: '/orders', badge: 24 },
-    { icon: Truck, label: 'Logistics & Shipping', path: '/logistics', badge: 3 },
-    { icon: ShoppingCart, label: 'Product Management', path: '/products', badge: null },
-    { icon: DollarSign, label: 'Sourcing & Pricing', path: '/sourcing', badge: null },
-    { icon: Warehouse, label: 'Inventory Management', path: '/inventory', badge: 7 },
-    { icon: RefreshCw, label: 'Refunds & Disputes', path: '/refunds', badge: 3 },
-    { icon: CreditCard, label: 'Payments & Billing', path: '/payments', badge: null },
-    { icon: FileText, label: 'Compliance & Docs', path: '/compliance', badge: null },
-    { icon: BarChart3, label: 'Analytics & Reports', path: '/analytics', badge: null },
-    { icon: Settings, label: 'Settings & API', path: '/settings', badge: null },
+  const allNavigationItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', badge: null, roles: ['admin', 'supplier'] },
+    { icon: Package, label: 'Order Management', path: '/orders', badge: 24, roles: ['admin', 'supplier'] },
+    { icon: Truck, label: 'Logistics & Shipping', path: '/logistics', badge: 3, roles: ['admin', 'supplier'] },
+    { icon: ShoppingCart, label: 'Product Management', path: '/products', badge: null, roles: ['admin'] },
+    { icon: DollarSign, label: 'Sourcing & Pricing', path: '/sourcing', badge: null, roles: ['admin'] },
+    { icon: Warehouse, label: 'Inventory Management', path: '/inventory', badge: 7, roles: ['admin'] },
+    { icon: RefreshCw, label: 'Refunds & Disputes', path: '/refunds', badge: 3, roles: ['admin', 'supplier'] },
+    { icon: CreditCard, label: 'Payments & Billing', path: '/payments', badge: null, roles: ['admin'] },
+    { icon: FileText, label: 'Compliance & Docs', path: '/compliance', badge: null, roles: ['admin', 'supplier'] },
+    { icon: BarChart3, label: 'Analytics & Reports', path: '/analytics', badge: null, roles: ['admin', 'supplier'] },
+    { icon: Settings, label: 'Settings & API', path: '/settings', badge: null, roles: ['admin'] },
   ];
+
+  // Filter navigation items based on user role
+  const navigationItems = allNavigationItems.filter(item => 
+    item.roles.includes(user?.role || 'supplier')
+  );
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const handleLogout = () => {
     console.log('Logout button clicked');
     logout();
+  };
+
+  // Get real order counts from API or context if available
+  const getOrderCount = (path: string) => {
+    // This would ideally come from a global state or API call
+    // For now, return placeholder values that will be updated
+    const counts: Record<string, number> = {
+      '/orders': 0, // Will be updated with real data
+      '/logistics': 0,
+      '/inventory': 0,
+      '/refunds': 0,
+    };
+    return counts[path] || null;
   };
 
   return (
@@ -72,31 +90,34 @@ const SupplierLayout = () => {
         {/* Navigation */}
         <nav className="flex-1 p-4">
           <div className="space-y-2">
-            {navigationItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={isActive(item.path) ? "default" : "ghost"}
-                className={`w-full justify-start h-10 ${sidebarOpen ? 'px-3' : 'px-2'} relative`}
-                onClick={() => navigate(item.path)}
-              >
-                <item.icon className="w-4 h-4" />
-                {sidebarOpen && (
-                  <>
-                    <span className="ml-3 flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </>
-                )}
-                {!sidebarOpen && item.badge && (
-                  <Badge variant="destructive" className="absolute -top-1 -right-1 text-xs w-5 h-5 p-0 flex items-center justify-center">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Button>
-            ))}
+            {navigationItems.map((item) => {
+              const badgeCount = getOrderCount(item.path) || item.badge;
+              return (
+                <Button
+                  key={item.path}
+                  variant={isActive(item.path) ? "default" : "ghost"}
+                  className={`w-full justify-start h-10 ${sidebarOpen ? 'px-3' : 'px-2'} relative`}
+                  onClick={() => navigate(item.path)}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {sidebarOpen && (
+                    <>
+                      <span className="ml-3 flex-1 text-left">{item.label}</span>
+                      {badgeCount && (
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {badgeCount}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                  {!sidebarOpen && badgeCount && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 text-xs w-5 h-5 p-0 flex items-center justify-center">
+                      {badgeCount}
+                    </Badge>
+                  )}
+                </Button>
+              );
+            })}
           </div>
         </nav>
 
@@ -161,7 +182,7 @@ const SupplierLayout = () => {
                 {navigationItems.find(item => isActive(item.path))?.label || 'Dashboard'}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Manage your supplier operations
+                Manage your {user?.role === 'admin' ? 'admin' : 'supplier'} operations
               </p>
             </div>
           </div>

@@ -48,14 +48,34 @@ const App = () => (
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="logistics" element={<LogisticsShipping />} />
-              <Route path="products" element={<ProductManagement />} />
-              <Route path="sourcing" element={<SourcingPricing />} />
-              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="products" element={
+                <ProtectedRoute requiredRole="admin">
+                  <ProductManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="sourcing" element={
+                <ProtectedRoute requiredRole="admin">
+                  <SourcingPricing />
+                </ProtectedRoute>
+              } />
+              <Route path="inventory" element={
+                <ProtectedRoute requiredRole="admin">
+                  <InventoryManagement />
+                </ProtectedRoute>
+              } />
               <Route path="refunds" element={<RefundsDisputes />} />
-              <Route path="payments" element={<PaymentsBilling />} />
+              <Route path="payments" element={
+                <ProtectedRoute requiredRole="admin">
+                  <PaymentsBilling />
+                </ProtectedRoute>
+              } />
               <Route path="compliance" element={<ComplianceDocs />} />
               <Route path="analytics" element={<AnalyticsReports />} />
-              <Route path="settings" element={<SettingsAPI />} />
+              <Route path="settings" element={
+                <ProtectedRoute requiredRole="admin">
+                  <SettingsAPI />
+                </ProtectedRoute>
+              } />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
