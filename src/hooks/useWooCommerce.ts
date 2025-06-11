@@ -669,5 +669,3 @@ export const useInTransitOrders = (dateRange?: { date_min?: string; date_max?: s
     staleTime: 5 * 60 * 1000,
   });
 };
-
-}
