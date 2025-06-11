@@ -206,7 +206,7 @@ const SupplierLayout = () => {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Main Content Area */}
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>

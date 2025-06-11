@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 import Login from "./pages/Login";
 import SupplierLayout from "./components/layouts/SupplierLayout";
 import Dashboard from "./pages/Dashboard";
@@ -24,65 +25,79 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401/403 errors
+        if (error?.status === 401 || error?.status === 403) {
+          return false;
+        }
+        // Retry up to 3 times for other errors
+        return failureCount < 3;
+      },
       staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 1,
     },
   },
 });
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <SupplierLayout />
-              </ProtectedRoute>
-            }>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="orders" element={<OrderManagement />} />
-              <Route path="logistics" element={<LogisticsShipping />} />
-              <Route path="products" element={
-                <ProtectedRoute requiredRole="admin">
-                  <ProductManagement />
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <SupplierLayout />
                 </ProtectedRoute>
-              } />
-              <Route path="sourcing" element={
-                <ProtectedRoute requiredRole="admin">
-                  <SourcingPricing />
-                </ProtectedRoute>
-              } />
-              <Route path="inventory" element={
-                <ProtectedRoute requiredRole="admin">
-                  <InventoryManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="refunds" element={<RefundsDisputes />} />
-              <Route path="payments" element={
-                <ProtectedRoute requiredRole="admin">
-                  <PaymentsBilling />
-                </ProtectedRoute>
-              } />
-              <Route path="compliance" element={<ComplianceDocs />} />
-              <Route path="analytics" element={<AnalyticsReports />} />
-              <Route path="settings" element={
-                <ProtectedRoute requiredRole="admin">
-                  <SettingsAPI />
-                </ProtectedRoute>
-              } />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+              }>
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="orders" element={<OrderManagement />} />
+                <Route path="logistics" element={<LogisticsShipping />} />
+                <Route path="products" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ProductManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="sourcing" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <SourcingPricing />
+                  </ProtectedRoute>
+                } />
+                <Route path="inventory" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <InventoryManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="refunds" element={<RefundsDisputes />} />
+                <Route path="payments" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <PaymentsBilling />
+                  </ProtectedRoute>
+                } />
+                <Route path="compliance" element={<ComplianceDocs />} />
+                <Route path="analytics" element={<AnalyticsReports />} />
+                <Route path="settings" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <SettingsAPI />
+                  </ProtectedRoute>
+                } />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

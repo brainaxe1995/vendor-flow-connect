@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Store, Eye, EyeOff, Copy, TestTube } from 'lucide-react';
+import { Store, Eye, EyeOff, Copy, TestTube, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useWooCommerceConfig, useTrackingDetection } from '../hooks/useWooCommerce';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
@@ -19,11 +19,12 @@ const SettingsAPI = () => {
   const [showWooKeys, setShowWooKeys] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const [wooCommerceConfig, setWooCommerceConfig] = useState<WooCommerceConfig>({
-    storeUrl: 'https://tharavix.com',
-    consumerKey: 'ck_599f2b3ebf95fe43c9ec032de08ebb1e1b10428a',
-    consumerSecret: 'cs_f781a6ecf0d14294b126954a2e15428930b1ac29',
+    storeUrl: '',
+    consumerKey: '',
+    consumerSecret: '',
     environment: 'live',
     permissions: 'write',
     status: 'inactive',
@@ -38,7 +39,32 @@ const SettingsAPI = () => {
     }
   }, [config]);
 
+  const validateConfig = (configToValidate: WooCommerceConfig): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!configToValidate.storeUrl?.trim()) {
+      errors.storeUrl = 'Store URL is required';
+    } else if (!configToValidate.storeUrl.match(/^https?:\/\/.+/)) {
+      errors.storeUrl = 'Store URL must be a valid URL starting with http:// or https://';
+    }
+    
+    if (!configToValidate.consumerKey?.trim()) {
+      errors.consumerKey = 'Consumer Key is required';
+    } else if (!configToValidate.consumerKey.startsWith('ck_')) {
+      errors.consumerKey = 'Consumer Key should start with "ck_"';
+    }
+    
+    if (!configToValidate.consumerSecret?.trim()) {
+      errors.consumerSecret = 'Consumer Secret is required';
+    } else if (!configToValidate.consumerSecret.startsWith('cs_')) {
+      errors.consumerSecret = 'Consumer Secret should start with "cs_"';
+    }
+    
+    return errors;
+  };
+
   const maskWooKey = (key: string) => {
+    if (!key) return '';
     if (!showWooKeys) {
       return key.substring(0, 8) + '••••••••••••••••' + key.substring(key.length - 4);
     }
@@ -46,14 +72,32 @@ const SettingsAPI = () => {
   };
 
   const handleWooConfigUpdate = (field: keyof WooCommerceConfig, value: string | boolean) => {
-    setWooCommerceConfig(prev => ({
-      ...prev,
+    const updatedConfig = {
+      ...wooCommerceConfig,
       [field]: value
-    }));
+    };
+    setWooCommerceConfig(updatedConfig);
+    
+    // Clear validation errors for this field
+    if (validationErrors[field]) {
+      const newErrors = { ...validationErrors };
+      delete newErrors[field];
+      setValidationErrors(newErrors);
+    }
   };
 
   const testWooConnection = async () => {
+    // Validate before testing
+    const errors = validateConfig(wooCommerceConfig);
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix validation errors before testing connection');
+      return;
+    }
+
     setIsTestingConnection(true);
+    setConnectionStatus('unknown');
     
     try {
       // Temporarily set the config for testing
@@ -69,26 +113,63 @@ const SettingsAPI = () => {
       }
     } catch (error) {
       setConnectionStatus('failed');
-      toast.error('Connection test failed: ' + (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Connection test failed: ${errorMessage}`);
+      console.error('Connection test error:', error);
     } finally {
       setIsTestingConnection(false);
     }
   };
 
-  const handleSaveWooConfig = () => {
-    const updatedConfig = {
-      ...wooCommerceConfig,
-      status: connectionStatus === 'connected' ? 'active' as const : 'inactive' as const,
-      lastUsed: new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5),
-      lastSync: connectionStatus === 'connected' ? new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5) : ''
-    };
+  const handleSaveWooConfig = async () => {
+    // Validate before saving
+    const errors = validateConfig(wooCommerceConfig);
+    setValidationErrors(errors);
     
-    saveConfig(updatedConfig);
-    toast.success('WooCommerce configuration saved successfully!');
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix validation errors before saving');
+      return;
+    }
+
+    try {
+      const success = await saveConfig(wooCommerceConfig);
+      
+      if (success) {
+        setConnectionStatus('connected');
+        toast.success('WooCommerce configuration saved and connected successfully!');
+      } else {
+        setConnectionStatus('failed');
+        toast.error('Failed to save configuration. Please check your credentials.');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to save configuration: ${errorMessage}`);
+      console.error('Save config error:', error);
+    }
+  };
+
+  const handleCopyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   const getStatusColor = (status: string) => {
     return status === 'active' || status === 'connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  };
+
+  const getConnectionIcon = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'failed':
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -113,6 +194,7 @@ const SettingsAPI = () => {
               <CardTitle className="flex items-center gap-2">
                 <Store className="w-5 h-5" />
                 WooCommerce API Configuration
+                {getConnectionIcon()}
               </CardTitle>
               <CardDescription>
                 Configure your WooCommerce store connection settings. These credentials are stored securely and used for all API communications.
@@ -121,13 +203,17 @@ const SettingsAPI = () => {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="storeUrl">Store URL</Label>
+                  <Label htmlFor="storeUrl">Store URL *</Label>
                   <Input
                     id="storeUrl"
                     value={wooCommerceConfig.storeUrl}
                     onChange={(e) => handleWooConfigUpdate('storeUrl', e.target.value)}
                     placeholder="https://yourstore.com"
+                    className={validationErrors.storeUrl ? 'border-red-500' : ''}
                   />
+                  {validationErrors.storeUrl && (
+                    <p className="text-sm text-red-600">{validationErrors.storeUrl}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="environment">API Environment</Label>
@@ -161,7 +247,7 @@ const SettingsAPI = () => {
 
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="consumerKey">Consumer Key</Label>
+                    <Label htmlFor="consumerKey">Consumer Key *</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerKey"
@@ -169,16 +255,24 @@ const SettingsAPI = () => {
                         value={showWooKeys ? wooCommerceConfig.consumerKey : maskWooKey(wooCommerceConfig.consumerKey)}
                         onChange={(e) => handleWooConfigUpdate('consumerKey', e.target.value)}
                         placeholder="ck_xxxxxxxxxxxxxxxx"
-                        className="font-mono text-sm"
+                        className={`font-mono text-sm ${validationErrors.consumerKey ? 'border-red-500' : ''}`}
                       />
-                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerKey)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleCopyToClipboard(wooCommerceConfig.consumerKey)}
+                        disabled={!wooCommerceConfig.consumerKey}
+                      >
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
+                    {validationErrors.consumerKey && (
+                      <p className="text-sm text-red-600">{validationErrors.consumerKey}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="consumerSecret">Consumer Secret</Label>
+                    <Label htmlFor="consumerSecret">Consumer Secret *</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerSecret"
@@ -186,12 +280,20 @@ const SettingsAPI = () => {
                         value={showWooKeys ? wooCommerceConfig.consumerSecret : maskWooKey(wooCommerceConfig.consumerSecret)}
                         onChange={(e) => handleWooConfigUpdate('consumerSecret', e.target.value)}
                         placeholder="cs_xxxxxxxxxxxxxxxx"
-                        className="font-mono text-sm"
+                        className={`font-mono text-sm ${validationErrors.consumerSecret ? 'border-red-500' : ''}`}
                       />
-                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerSecret)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleCopyToClipboard(wooCommerceConfig.consumerSecret)}
+                        disabled={!wooCommerceConfig.consumerSecret}
+                      >
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
+                    {validationErrors.consumerSecret && (
+                      <p className="text-sm text-red-600">{validationErrors.consumerSecret}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -247,7 +349,10 @@ const SettingsAPI = () => {
                   <TestTube className="w-4 h-4 mr-2" />
                   {isTestingConnection ? 'Testing...' : 'Test Connection'}
                 </Button>
-                <Button onClick={handleSaveWooConfig}>
+                <Button 
+                  onClick={handleSaveWooConfig}
+                  disabled={isTestingConnection}
+                >
                   Save Configuration
                 </Button>
               </div>
@@ -346,3 +451,5 @@ const SettingsAPI = () => {
 };
 
 export default SettingsAPI;
+
+}
