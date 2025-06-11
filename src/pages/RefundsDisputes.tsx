@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,10 +30,10 @@ const RefundsDisputes = () => {
     search: searchTerm 
   });
 
-  // Extract orders from data wrapper
-  const refundedOrders = refundedData?.orders || [];
-  const cancelledOrders = cancelledData?.orders || [];
-  const completedOrders = completedData?.orders || [];
+  // Extract orders from data wrapper - fixed to use .data property
+  const refundedOrders = refundedData?.data || [];
+  const cancelledOrders = cancelledData?.data || [];
+  const completedOrders = completedData?.data || [];
 
   const createRefundMutation = useCreateRefund();
 
