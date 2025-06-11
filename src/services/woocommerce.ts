@@ -1,3 +1,4 @@
+
 import { WooCommerceConfig } from '../types/woocommerce';
 
 export interface WooCommerceOrder {
@@ -334,5 +335,3 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
-
-}
