@@ -7,6 +7,16 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import SupplierLayout from "./components/layouts/SupplierLayout";
 import Dashboard from "./pages/Dashboard";
 import OrderManagement from "./pages/OrderManagement";
+import LogisticsShipping from "./pages/LogisticsShipping";
+import ProductManagement from "./pages/ProductManagement";
+import SourcingPricing from "./pages/SourcingPricing";
+import InventoryManagement from "./pages/InventoryManagement";
+import RefundsDisputes from "./pages/RefundsDisputes";
+import PaymentsBilling from "./pages/PaymentsBilling";
+import CommunicationCenter from "./pages/CommunicationCenter";
+import ComplianceDocs from "./pages/ComplianceDocs";
+import AnalyticsReports from "./pages/AnalyticsReports";
+import SettingsAPI from "./pages/SettingsAPI";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,17 +32,16 @@ const App = () => (
           <Route path="/" element={<SupplierLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="orders" element={<OrderManagement />} />
-            {/* Placeholder routes for other modules */}
-            <Route path="logistics" element={<div className="p-6">Logistics & Shipping (Coming Soon)</div>} />
-            <Route path="products" element={<div className="p-6">Product Management (Coming Soon)</div>} />
-            <Route path="sourcing" element={<div className="p-6">Sourcing & Pricing (Coming Soon)</div>} />
-            <Route path="inventory" element={<div className="p-6">Inventory Management (Coming Soon)</div>} />
-            <Route path="refunds" element={<div className="p-6">Refunds & Disputes (Coming Soon)</div>} />
-            <Route path="payments" element={<div className="p-6">Payments & Billing (Coming Soon)</div>} />
-            <Route path="communication" element={<div className="p-6">Communication Center (Coming Soon)</div>} />
-            <Route path="compliance" element={<div className="p-6">Compliance & Docs (Coming Soon)</div>} />
-            <Route path="analytics" element={<div className="p-6">Analytics & Reports (Coming Soon)</div>} />
-            <Route path="settings" element={<div className="p-6">Settings & API Integration (Coming Soon)</div>} />
+            <Route path="logistics" element={<LogisticsShipping />} />
+            <Route path="products" element={<ProductManagement />} />
+            <Route path="sourcing" element={<SourcingPricing />} />
+            <Route path="inventory" element={<InventoryManagement />} />
+            <Route path="refunds" element={<RefundsDisputes />} />
+            <Route path="payments" element={<PaymentsBilling />} />
+            <Route path="communication" element={<CommunicationCenter />} />
+            <Route path="compliance" element={<ComplianceDocs />} />
+            <Route path="analytics" element={<AnalyticsReports />} />
+            <Route path="settings" element={<SettingsAPI />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
