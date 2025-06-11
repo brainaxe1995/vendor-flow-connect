@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { wooCommerceService, WooCommerceOrder, WooCommerceProduct, WooCommerceResponse } from '../services/woocommerce';
+import { 
+  wooCommerceService, 
+  WooCommerceOrder, 
+  WooCommerceProduct, 
+  WooCommerceCategory,
+  WooCommerceCustomer,
+  SalesReport,
+  TopSellerReport,
+  WooCommerceResponse 
+} from '../services/woocommerce';
 import { WooCommerceConfig, OrderStats, ProductStats, Notification } from '../types/woocommerce';
 
 export const useWooCommerceConfig = () => {
@@ -185,8 +194,145 @@ export const useUpdateProduct = () => {
   });
 };
 
-export const useOrderStats = () => {
-  const { data: response, isLoading, error } = useOrders({ per_page: 100 });
+// Categories hooks
+export const useCategories = (params?: {
+  per_page?: number;
+  page?: number;
+  search?: string;
+  parent?: number;
+  exclude?: number[];
+  include?: number[];
+  order?: 'asc' | 'desc';
+  orderby?: 'id' | 'include' | 'name' | 'slug' | 'term_group' | 'description' | 'count';
+  hide_empty?: boolean;
+}) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['categories', params],
+    queryFn: async (): Promise<WooCommerceResponse<WooCommerceCategory[]>> => {
+      try {
+        console.log('Fetching categories with params:', params);
+        const response = await wooCommerceService.getCategories(params);
+        console.log('Categories response:', response);
+        return response;
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        return {
+          data: [],
+          totalPages: 0,
+          totalRecords: 0,
+          hasMore: false
+        };
+      }
+    },
+    enabled: isConfigured,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+
+// Customers hooks
+export const useCustomers = (params?: {
+  per_page?: number;
+  page?: number;
+  search?: string;
+  email?: string;
+  include?: number[];
+  exclude?: number[];
+  orderby?: 'id' | 'include' | 'name' | 'registered_date';
+  order?: 'asc' | 'desc';
+  after?: string;
+  before?: string;
+  role?: string;
+}) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['customers', params],
+    queryFn: async (): Promise<WooCommerceResponse<WooCommerceCustomer[]>> => {
+      try {
+        console.log('Fetching customers with params:', params);
+        const response = await wooCommerceService.getCustomers(params);
+        console.log('Customers response:', response);
+        return response;
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+        return {
+          data: [],
+          totalPages: 0,
+          totalRecords: 0,
+          hasMore: false
+        };
+      }
+    },
+    enabled: isConfigured,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Reports hooks
+export const useSalesReport = (params?: {
+  period?: string;
+  date_min?: string;
+  date_max?: string;
+  category_id?: number;
+}) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['sales-report', params],
+    queryFn: () => wooCommerceService.getSalesReport(params),
+    enabled: isConfigured,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useTopSellers = (params?: {
+  period?: string;
+  date_min?: string;
+  date_max?: string;
+  per_page?: number;
+}) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['top-sellers', params],
+    queryFn: () => wooCommerceService.getTopSellersReport(params),
+    enabled: isConfigured,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+
+// Export hook
+export const useExportData = () => {
+  return useMutation({
+    mutationFn: async (params: {
+      type: 'orders' | 'products' | 'customers' | 'refunds';
+      format: 'csv' | 'pdf';
+      date_min?: string;
+      date_max?: string;
+      status?: string;
+    }) => {
+      const blob = await wooCommerceService.exportData(params);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${params.type}_export_${new Date().toISOString().split('T')[0]}.${params.format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      return blob;
+    },
+  });
+};
+
+export const useOrderStats = (dateRange?: { date_min?: string; date_max?: string }) => {
+  const { data: response, isLoading, error } = useOrders({ 
+    per_page: 1000,
+    after: dateRange?.date_min,
+    before: dateRange?.date_max 
+  });
   
   const stats = response?.data ? {
     pending: response.data.filter(o => o.status === 'pending').length,
@@ -205,7 +351,7 @@ export const useOrderStats = () => {
 };
 
 export const useProductStats = () => {
-  const { data: response, isLoading, error } = useProducts({ per_page: 100 });
+  const { data: response, isLoading, error } = useProducts({ per_page: 1000 });
   
   const stats = response?.data ? {
     total: response.data.length,
@@ -216,6 +362,63 @@ export const useProductStats = () => {
   } : undefined;
 
   return { data: stats, isLoading, error };
+};
+
+// Customer acquisition with date filtering
+export const useCustomerAcquisition = (dateRange?: { date_min?: string; date_max?: string }) => {
+  const { data: response, isLoading, error } = useCustomers({
+    per_page: 1000,
+    after: dateRange?.date_min,
+    before: dateRange?.date_max,
+    orderby: 'registered_date',
+    order: 'desc'
+  });
+
+  const acquisitionData = response?.data ? response.data.reduce((acc, customer) => {
+    const date = new Date(customer.date_created).toISOString().split('T')[0];
+    acc[date] = (acc[date] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) : {};
+
+  const chartData = Object.entries(acquisitionData).map(([date, count]) => ({
+    date,
+    customers: count
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  return { data: chartData, isLoading, error };
+};
+
+// Category sales data
+export const useCategorySales = (dateRange?: { date_min?: string; date_max?: string }) => {
+  const { data: categoriesResponse } = useCategories();
+  const { data: ordersResponse } = useOrders({
+    per_page: 1000,
+    after: dateRange?.date_min,
+    before: dateRange?.date_max
+  });
+
+  const categories = categoriesResponse?.data || [];
+  const orders = ordersResponse?.data || [];
+
+  const categorySales = categories.map(category => {
+    const categoryOrders = orders.filter(order => 
+      order.line_items.some(item => 
+        item.product_id && categories.find(cat => cat.id === category.id)
+      )
+    );
+    
+    const totalSales = categoryOrders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0);
+    const orderCount = categoryOrders.length;
+
+    return {
+      name: category.name,
+      value: orderCount,
+      sales: totalSales,
+      label: `${category.name} (${orderCount} orders)`
+    };
+  }).filter(item => item.value > 0);
+
+  return { data: categorySales };
 };
 
 export const useNotifications = () => {
@@ -291,17 +494,6 @@ export const useTrackingDetection = () => {
     queryFn: () => wooCommerceService.detectTrackingMetaKey(),
     enabled: isConfigured,
     staleTime: 5 * 60 * 1000,
-  });
-};
-
-export const useTopSellers = () => {
-  const { isConfigured } = useWooCommerceConfig();
-  
-  return useQuery({
-    queryKey: ['top-sellers'],
-    queryFn: () => wooCommerceService.getTopSellersReport(),
-    enabled: isConfigured,
-    staleTime: 10 * 60 * 1000,
   });
 };
 

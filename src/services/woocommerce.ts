@@ -71,6 +71,88 @@ export interface WooCommerceProduct {
   }>;
 }
 
+export interface WooCommerceCategory {
+  id: number;
+  name: string;
+  slug: string;
+  parent: number;
+  description: string;
+  display: string;
+  image: {
+    id: number;
+    src: string;
+    alt: string;
+  } | null;
+  menu_order: number;
+  count: number;
+}
+
+export interface WooCommerceCustomer {
+  id: number;
+  date_created: string;
+  date_modified: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  username: string;
+  billing: {
+    first_name: string;
+    last_name: string;
+    company: string;
+    address_1: string;
+    address_2: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+    email: string;
+    phone: string;
+  };
+  shipping: {
+    first_name: string;
+    last_name: string;
+    company: string;
+    address_1: string;
+    address_2: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  is_paying_customer: boolean;
+  avatar_url: string;
+  meta_data: Array<{
+    id: number;
+    key: string;
+    value: string;
+  }>;
+}
+
+export interface SalesReport {
+  total_sales: string;
+  net_sales: string;
+  average_sales: string;
+  total_orders: number;
+  total_items: number;
+  total_tax: string;
+  total_shipping: string;
+  total_refunds: string;
+  total_discount: string;
+  totals_grouped_by: string;
+  totals: {
+    [key: string]: {
+      sales: string;
+      orders: number;
+      items: number;
+      tax: string;
+      shipping: string;
+      discount: string;
+      customers: number;
+    };
+  };
+}
+
 export interface TopSellerReport {
   product_id: number;
   quantity: number;
@@ -265,18 +347,106 @@ class WooCommerceService {
     return response.json();
   }
 
-  // Reports API
-  async getOrdersReport(params: {
+  // Categories API
+  async getCategories(params: {
+    per_page?: number;
+    page?: number;
+    search?: string;
+    parent?: number;
+    exclude?: number[];
+    include?: number[];
+    order?: 'asc' | 'desc';
+    orderby?: 'id' | 'include' | 'name' | 'slug' | 'term_group' | 'description' | 'count';
+    hide_empty?: boolean;
+  } = {}): Promise<WooCommerceResponse<WooCommerceCategory[]>> {
+    const queryParams = new URLSearchParams();
+    
+    queryParams.append('per_page', (params.per_page || 100).toString());
+    queryParams.append('page', (params.page || 1).toString());
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && key !== 'per_page' && key !== 'page') {
+        if (Array.isArray(value)) {
+          queryParams.append(key, value.join(','));
+        } else {
+          queryParams.append(key, String(value));
+        }
+      }
+    });
+    
+    const endpoint = `/products/categories?${queryParams.toString()}`;
+    console.log('Fetching categories with params:', params);
+    
+    const response = await this.makeRequest(endpoint);
+    const data = await response.json();
+    const { totalPages, totalRecords } = this.parseHeaders(response);
+    
+    return {
+      data: Array.isArray(data) ? data : [],
+      totalPages,
+      totalRecords,
+      hasMore: (params.page || 1) < totalPages
+    };
+  }
+
+  // Customers API
+  async getCustomers(params: {
+    per_page?: number;
+    page?: number;
+    search?: string;
+    email?: string;
+    include?: number[];
+    exclude?: number[];
+    orderby?: 'id' | 'include' | 'name' | 'registered_date';
+    order?: 'asc' | 'desc';
+    after?: string;
+    before?: string;
+    role?: string;
+  } = {}): Promise<WooCommerceResponse<WooCommerceCustomer[]>> {
+    const queryParams = new URLSearchParams();
+    
+    queryParams.append('per_page', (params.per_page || 100).toString());
+    queryParams.append('page', (params.page || 1).toString());
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && key !== 'per_page' && key !== 'page') {
+        if (Array.isArray(value)) {
+          queryParams.append(key, value.join(','));
+        } else {
+          queryParams.append(key, String(value));
+        }
+      }
+    });
+    
+    const endpoint = `/customers?${queryParams.toString()}`;
+    console.log('Fetching customers with params:', params);
+    
+    const response = await this.makeRequest(endpoint);
+    const data = await response.json();
+    const { totalPages, totalRecords } = this.parseHeaders(response);
+    
+    return {
+      data: Array.isArray(data) ? data : [],
+      totalPages,
+      totalRecords,
+      hasMore: (params.page || 1) < totalPages
+    };
+  }
+
+  // Enhanced Reports API
+  async getSalesReport(params: {
     period?: string;
     date_min?: string;
     date_max?: string;
-  } = {}): Promise<any> {
+    category_id?: number;
+  } = {}): Promise<SalesReport> {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value) queryParams.append(key, String(value));
+      if (value !== undefined) queryParams.append(key, String(value));
     });
     
-    const endpoint = `/reports/orders?${queryParams.toString()}`;
+    const endpoint = `/reports/sales?${queryParams.toString()}`;
+    console.log('Fetching sales report with params:', params);
     const response = await this.makeRequest(endpoint);
     return response.json();
   }
@@ -298,21 +468,6 @@ class WooCommerceService {
     
     const endpoint = `/reports/top_sellers?${queryParams.toString()}`;
     console.log('Fetching top sellers report');
-    const response = await this.makeRequest(endpoint);
-    return response.json();
-  }
-
-  async getSalesReport(params: {
-    period?: string;
-    date_min?: string;
-    date_max?: string;
-  } = {}): Promise<any> {
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value) queryParams.append(key, String(value));
-    });
-    
-    const endpoint = `/reports/sales?${queryParams.toString()}`;
     const response = await this.makeRequest(endpoint);
     return response.json();
   }
@@ -378,6 +533,76 @@ class WooCommerceService {
       console.error('Failed to detect tracking meta keys:', error);
       return ['_tracking_number'];
     }
+  }
+
+  // Export functionality
+  async exportData(params: {
+    type: 'orders' | 'products' | 'customers' | 'refunds';
+    format: 'csv' | 'pdf';
+    date_min?: string;
+    date_max?: string;
+    status?: string;
+  }): Promise<Blob> {
+    // This would typically generate and return export data
+    // For now, we'll create a simple CSV export
+    let data: any[] = [];
+    
+    switch (params.type) {
+      case 'orders':
+        const orders = await this.getOrders({
+          after: params.date_min,
+          before: params.date_max,
+          status: params.status,
+          per_page: 1000
+        });
+        data = orders.data.map(order => ({
+          'Order ID': order.id,
+          'Customer': `${order.billing.first_name} ${order.billing.last_name}`,
+          'Email': order.billing.email,
+          'Total': order.total,
+          'Status': order.status,
+          'Date': order.date_created
+        }));
+        break;
+      case 'products':
+        const products = await this.getProducts({ per_page: 1000 });
+        data = products.data.map(product => ({
+          'Product ID': product.id,
+          'Name': product.name,
+          'SKU': product.sku,
+          'Price': product.price,
+          'Stock': product.stock_quantity,
+          'Status': product.status
+        }));
+        break;
+      case 'customers':
+        const customers = await this.getCustomers({
+          after: params.date_min,
+          before: params.date_max,
+          per_page: 1000
+        });
+        data = customers.data.map(customer => ({
+          'Customer ID': customer.id,
+          'Name': `${customer.first_name} ${customer.last_name}`,
+          'Email': customer.email,
+          'Date Registered': customer.date_created,
+          'Role': customer.role
+        }));
+        break;
+    }
+
+    // Convert to CSV
+    if (data.length === 0) {
+      throw new Error('No data to export');
+    }
+
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    ].join('\n');
+
+    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   }
 }
 
