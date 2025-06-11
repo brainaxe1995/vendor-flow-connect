@@ -1,141 +1,99 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Truck, Package, AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
-import { wooCommerceService } from '../services/woocommerce';
-import { usePagination } from '../hooks/usePagination';
-import { Pagination } from '../components/ui/pagination';
+import { Search, Truck, Package, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { useOrders, useUpdateOrder } from '../hooks/useWooCommerce';
 import { toast } from 'sonner';
 
 const LogisticsShipping = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('ready-to-ship');
-  const [orders, setOrders] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [trackingInputs, setTrackingInputs] = useState<{[key: number]: string}>({});
-  const [updatingOrders, setUpdatingOrders] = useState<Set<number>>(new Set());
+  const [trackingInput, setTrackingInput] = useState('');
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
 
-  const pagination = usePagination({
-    initialPageSize: 20
+  const { data: processingOrders, isLoading: processingLoading } = useOrders({ 
+    status: 'processing',
+    search: searchTerm 
+  });
+  const { data: shippedOrders, isLoading: shippedLoading } = useOrders({ 
+    status: 'completed',
+    search: searchTerm 
+  });
+  const { data: onHoldOrders, isLoading: onHoldLoading } = useOrders({ 
+    status: 'on-hold',
+    search: searchTerm 
   });
 
-  // Load orders based on active tab and filters
-  const loadOrders = async (page?: number) => {
-    setIsLoading(true);
-    try {
-      const statusMap: {[key: string]: string} = {
-        'ready-to-ship': 'processing',
-        'in-transit': 'completed',
-        'exceptions': 'on-hold',
-        'delivered': 'completed'
-      };
-
-      const status = statusMap[activeTab];
-      const response = await wooCommerceService.getOrdersPaginated({
-        status,
-        page: page || pagination.currentPage,
-        per_page: pagination.pageSize,
-        search: searchTerm || undefined
-      });
-
-      setOrders(response.data);
-      
-      // Update pagination with real totals
-      if (response.total !== pagination.totalItems) {
-        pagination.goToPage(1); // Reset to first page with new data
-      }
-    } catch (error) {
-      console.error('Failed to load orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load orders when tab, search, or page changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadOrders();
-    }, searchTerm ? 500 : 0); // Debounce search
-
-    return () => clearTimeout(timer);
-  }, [activeTab, searchTerm, pagination.currentPage, pagination.pageSize]);
-
-  const handleRefresh = () => {
-    loadOrders();
-    toast.success('Orders refreshed');
-  };
+  const updateOrderMutation = useUpdateOrder();
 
   const getTrackingNumber = (order: any) => {
-    return wooCommerceService.getTrackingNumber(order);
+    if (!order.meta_data) return null;
+    
+    const trackingMeta = order.meta_data.find((meta: any) => {
+      const key = meta.key.toLowerCase();
+      return key.includes('tracking') || key.includes('track') || key.includes('shipment');
+    });
+    
+    return trackingMeta?.value || null;
   };
 
   const getShipmentStatus = (order: any) => {
     const tracking = getTrackingNumber(order);
+    if (!tracking) return { status: 'No Tracking', color: 'bg-gray-100 text-gray-800' };
     
-    if (activeTab === 'ready-to-ship') {
-      return tracking 
-        ? { status: 'Ready', color: 'bg-green-100 text-green-800' }
-        : { status: 'Pending', color: 'bg-yellow-100 text-yellow-800' };
-    }
-    
-    if (activeTab === 'in-transit') {
+    // In a real implementation, you would check with shipping APIs
+    if (order.status === 'completed') {
+      return { status: 'Delivered', color: 'bg-green-100 text-green-800' };
+    } else if (order.status === 'processing') {
       return { status: 'In Transit', color: 'bg-blue-100 text-blue-800' };
-    }
-    
-    if (activeTab === 'exceptions') {
+    } else if (order.status === 'on-hold') {
       return { status: 'Exception', color: 'bg-red-100 text-red-800' };
     }
     
-    return { status: 'Delivered', color: 'bg-green-100 text-green-800' };
-  };
-
-  const handleTrackingInputChange = (orderId: number, value: string) => {
-    setTrackingInputs(prev => ({
-      ...prev,
-      [orderId]: value
-    }));
+    return { status: 'Processing', color: 'bg-yellow-100 text-yellow-800' };
   };
 
   const handleAddTracking = async (orderId: number) => {
-    const trackingNumber = trackingInputs[orderId];
-    if (!trackingNumber?.trim()) {
+    if (!trackingInput.trim()) {
       toast.error('Please enter a tracking number');
       return;
     }
 
-    setUpdatingOrders(prev => new Set(prev).add(orderId));
+    setUpdatingOrderId(orderId);
     try {
-      await wooCommerceService.updateOrderTracking(orderId, trackingNumber.trim());
+      await updateOrderMutation.mutateAsync({
+        orderId,
+        data: {
+          meta_data: [
+            {
+              id: 0, // WooCommerce will assign the actual ID
+              key: '_tracking_number',
+              value: trackingInput.trim()
+            }
+          ],
+          status: 'completed' // Mark as shipped when tracking is added
+        }
+      });
+
       toast.success('Tracking number added successfully');
-      
-      // Clear the input for this specific order
-      setTrackingInputs(prev => {
-        const updated = { ...prev };
-        delete updated[orderId];
-        return updated;
-      });
-      
-      // Reload orders to show updated status
-      loadOrders();
+      setTrackingInput('');
+      setUpdatingOrderId(null);
     } catch (error) {
-      console.error('Add tracking error:', error);
       toast.error('Failed to add tracking number');
-    } finally {
-      setUpdatingOrders(prev => {
-        const updated = new Set(prev);
-        updated.delete(orderId);
-        return updated;
-      });
+      console.error('Add tracking error:', error);
+      setUpdatingOrderId(null);
     }
   };
 
-  const ShipmentTable = ({ showAddTracking = false }: { showAddTracking?: boolean }) => {
+  const ShipmentTable = ({ orders, isLoading, showAddTracking = false }: { 
+    orders: any[], 
+    isLoading: boolean, 
+    showAddTracking?: boolean 
+  }) => {
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -154,100 +112,85 @@ const LogisticsShipping = () => {
     }
 
     return (
-      <>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Destination</TableHead>
-              <TableHead>Tracking Number</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              {showAddTracking && <TableHead>Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((order) => {
-              const tracking = getTrackingNumber(order);
-              const shipmentStatus = getShipmentStatus(order);
-              const isUpdating = updatingOrders.has(order.id);
-              const trackingInput = trackingInputs[order.id] || '';
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order ID</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Destination</TableHead>
+            <TableHead>Tracking Number</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+            {showAddTracking && <TableHead>Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {orders.map((order) => {
+            const tracking = getTrackingNumber(order);
+            const shipmentStatus = getShipmentStatus(order);
+            const isUpdating = updatingOrderId === order.id;
 
-              return (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">#{order.id}</TableCell>
+            return (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">#{order.id}</TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-medium">{order.billing.first_name} {order.billing.last_name}</p>
+                    <p className="text-sm text-muted-foreground">{order.billing.email}</p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    <p>{order.shipping.address_1}</p>
+                    <p>{order.shipping.city}, {order.shipping.state} {order.shipping.postcode}</p>
+                    <p>{order.shipping.country}</p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {tracking ? (
+                    <code className="text-xs bg-muted px-2 py-1 rounded">{tracking}</code>
+                  ) : (
+                    <span className="text-muted-foreground">Not assigned</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge className={shipmentStatus.color}>
+                    {shipmentStatus.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{new Date(order.date_created).toLocaleDateString()}</TableCell>
+                {showAddTracking && (
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{order.billing.first_name} {order.billing.last_name}</p>
-                      <p className="text-sm text-muted-foreground">{order.billing.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <p>{order.shipping.address_1}</p>
-                      <p>{order.shipping.city}, {order.shipping.state} {order.shipping.postcode}</p>
-                      <p>{order.shipping.country}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {tracking ? (
-                      <code className="text-xs bg-muted px-2 py-1 rounded">{tracking}</code>
+                    {!tracking ? (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Tracking number"
+                          value={trackingInput}
+                          onChange={(e) => setTrackingInput(e.target.value)}
+                          className="w-32 text-xs"
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleAddTracking(order.id)}
+                          disabled={isUpdating || !trackingInput.trim()}
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'Add'
+                          )}
+                        </Button>
+                      </div>
                     ) : (
-                      <span className="text-muted-foreground">Not assigned</span>
+                      <span className="text-sm text-green-600">✓ Shipped</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge className={shipmentStatus.color}>
-                      {shipmentStatus.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{new Date(order.date_created).toLocaleDateString()}</TableCell>
-                  {showAddTracking && (
-                    <TableCell>
-                      {!tracking ? (
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Tracking number"
-                            value={trackingInput}
-                            onChange={(e) => handleTrackingInputChange(order.id, e.target.value)}
-                            className="w-32 text-xs"
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleAddTracking(order.id)}
-                            disabled={isUpdating || !trackingInput.trim()}
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              'Add'
-                            )}
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-green-600">✓ Shipped</span>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        <div className="mt-4">
-          <Pagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            pageSize={pagination.pageSize}
-            totalItems={pagination.totalItems}
-            onPageChange={pagination.goToPage}
-            onPageSizeChange={pagination.setPageSize}
-            disabled={isLoading}
-          />
-        </div>
-      </>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     );
   };
 
@@ -256,10 +199,6 @@ const LogisticsShipping = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Logistics & Shipping</h1>
         <div className="flex gap-3">
-          <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input 
@@ -272,19 +211,19 @@ const LogisticsShipping = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs defaultValue="ready-to-ship" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="ready-to-ship" className="flex items-center gap-2">
             <Package className="w-4 h-4" />
-            Ready to Ship
+            Ready to Ship <Badge variant="secondary">{processingOrders?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="in-transit" className="flex items-center gap-2">
             <Truck className="w-4 h-4" />
-            In Transit
+            In Transit <Badge variant="secondary">{shippedOrders?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="exceptions" className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
-            Exceptions
+            Exceptions <Badge variant="destructive">{onHoldOrders?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="delivered" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
@@ -299,7 +238,11 @@ const LogisticsShipping = () => {
               <CardDescription>Orders ready for shipment</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable showAddTracking={true} />
+              <ShipmentTable 
+                orders={processingOrders || []} 
+                isLoading={processingLoading} 
+                showAddTracking={true}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -311,7 +254,7 @@ const LogisticsShipping = () => {
               <CardDescription>Orders currently being shipped</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable />
+              <ShipmentTable orders={shippedOrders || []} isLoading={shippedLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -323,7 +266,7 @@ const LogisticsShipping = () => {
               <CardDescription>Orders with shipping issues that need attention</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable />
+              <ShipmentTable orders={onHoldOrders || []} isLoading={onHoldLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -335,7 +278,10 @@ const LogisticsShipping = () => {
               <CardDescription>Successfully delivered shipments</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable />
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                <p>Delivered orders tracking coming soon</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

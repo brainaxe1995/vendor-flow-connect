@@ -1,49 +1,68 @@
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'sonner';
-import AppLayout from './components/layout/AppLayout';
-import Dashboard from './pages/Dashboard';
-import LogisticsShipping from './pages/LogisticsShipping';
-import InventoryManagement from './pages/InventoryManagement';
-import RefundsDisputes from './pages/RefundsDisputes';
-import SourcingPricing from './pages/SourcingPricing';
-import PaymentsBilling from './pages/PaymentsBilling';
-import ComplianceDocs from './pages/ComplianceDocs';
-import SettingsAPI from './pages/SettingsAPI';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import SupplierLayout from "./components/layouts/SupplierLayout";
+import Dashboard from "./pages/Dashboard";
+import OrderManagement from "./pages/OrderManagement";
+import LogisticsShipping from "./pages/LogisticsShipping";
+import ProductManagement from "./pages/ProductManagement";
+import SourcingPricing from "./pages/SourcingPricing";
+import InventoryManagement from "./pages/InventoryManagement";
+import RefundsDisputes from "./pages/RefundsDisputes";
+import PaymentsBilling from "./pages/PaymentsBilling";
+import ComplianceDocs from "./pages/ComplianceDocs";
+import AnalyticsReports from "./pages/AnalyticsReports";
+import SettingsAPI from "./pages/SettingsAPI";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
+      retry: 3,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
 });
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-background">
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
           <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <SupplierLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="orders" element={<OrderManagement />} />
               <Route path="logistics" element={<LogisticsShipping />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="sourcing" element={<SourcingPricing />} />
               <Route path="inventory" element={<InventoryManagement />} />
               <Route path="refunds" element={<RefundsDisputes />} />
-              <Route path="sourcing" element={<SourcingPricing />} />
               <Route path="payments" element={<PaymentsBilling />} />
               <Route path="compliance" element={<ComplianceDocs />} />
+              <Route path="analytics" element={<AnalyticsReports />} />
               <Route path="settings" element={<SettingsAPI />} />
             </Route>
+            <Route path="*" element={<NotFound />} />
           </Routes>
-          <Toaster position="top-right" />
-        </div>
-      </Router>
-    </QueryClientProvider>
-  );
-}
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;
