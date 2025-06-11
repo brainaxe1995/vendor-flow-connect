@@ -253,7 +253,6 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceOrder[]>> {
     const queryParams = new URLSearchParams();
     
-    // Fixed: Ensure per_page is within valid limits (1-100)
     const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
     queryParams.append('per_page', perPage.toString());
     queryParams.append('page', Math.max(params.page || 1, 1).toString());
@@ -301,7 +300,7 @@ class WooCommerceService {
     const updateData = {
       meta_data: [
         {
-          id: 0, // WooCommerce will assign the actual ID
+          id: 0,
           key,
           value: trackingNumber,
         }
@@ -322,7 +321,6 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceProduct[]>> {
     const queryParams = new URLSearchParams();
     
-    // Fixed: Ensure per_page is within valid limits (1-100)
     const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
     queryParams.append('per_page', perPage.toString());
     queryParams.append('page', Math.max(params.page || 1, 1).toString());
@@ -379,7 +377,6 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceCategory[]>> {
     const queryParams = new URLSearchParams();
     
-    // Fixed: Ensure per_page is within valid limits (1-100)
     const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
     queryParams.append('per_page', perPage.toString());
     queryParams.append('page', Math.max(params.page || 1, 1).toString());
@@ -428,7 +425,6 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceCustomer[]>> {
     const queryParams = new URLSearchParams();
     
-    // Fixed: Ensure per_page is within valid limits (1-100)
     const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
     queryParams.append('per_page', perPage.toString());
     queryParams.append('page', Math.max(params.page || 1, 1).toString());
@@ -487,7 +483,6 @@ class WooCommerceService {
   } = {}): Promise<TopSellerReport[]> {
     const queryParams = new URLSearchParams();
     
-    // Fixed: Ensure per_page is within valid limits
     const perPage = Math.min(Math.max(params.per_page || 10, 1), 100);
     queryParams.append('per_page', perPage.toString());
     
@@ -543,7 +538,7 @@ class WooCommerceService {
   async detectTrackingMetaKey(): Promise<string[]> {
     try {
       console.log('Detecting tracking meta keys...');
-      const response = await this.getOrders({ per_page: 20 }); // Fixed: Use valid per_page
+      const response = await this.getOrders({ per_page: 20 });
       const trackingKeys = new Set<string>();
       
       if (response.data && Array.isArray(response.data)) {
@@ -581,8 +576,6 @@ class WooCommerceService {
     date_max?: string;
     status?: string;
   }): Promise<Blob> {
-    // This would typically generate and return export data
-    // For now, we'll create a simple CSV export
     let data: any[] = [];
     
     switch (params.type) {
@@ -591,7 +584,7 @@ class WooCommerceService {
           after: params.date_min,
           before: params.date_max,
           status: params.status,
-          per_page: 100 // Fixed: Use valid per_page
+          per_page: 100
         });
         data = orders.data.map(order => ({
           'Order ID': order.id,
@@ -603,7 +596,7 @@ class WooCommerceService {
         }));
         break;
       case 'products':
-        const products = await this.getProducts({ per_page: 100 }); // Fixed: Use valid per_page
+        const products = await this.getProducts({ per_page: 100 });
         data = products.data.map(product => ({
           'Product ID': product.id,
           'Name': product.name,
@@ -617,7 +610,7 @@ class WooCommerceService {
         const customers = await this.getCustomers({
           after: params.date_min,
           before: params.date_max,
-          per_page: 100 // Fixed: Use valid per_page
+          per_page: 100
         });
         data = customers.data.map(customer => ({
           'Customer ID': customer.id,
@@ -629,7 +622,6 @@ class WooCommerceService {
         break;
     }
 
-    // Convert to CSV
     if (data.length === 0) {
       throw new Error('No data to export');
     }
