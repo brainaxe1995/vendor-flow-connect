@@ -15,18 +15,23 @@ const LogisticsShipping = () => {
   const [trackingInput, setTrackingInput] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
 
-  const { data: processingOrders, isLoading: processingLoading } = useOrders({ 
+  const { data: processingData, isLoading: processingLoading } = useOrders({ 
     status: 'processing',
     search: searchTerm 
   });
-  const { data: shippedOrders, isLoading: shippedLoading } = useOrders({ 
+  const { data: shippedData, isLoading: shippedLoading } = useOrders({ 
     status: 'completed',
     search: searchTerm 
   });
-  const { data: onHoldOrders, isLoading: onHoldLoading } = useOrders({ 
+  const { data: onHoldData, isLoading: onHoldLoading } = useOrders({ 
     status: 'on-hold',
     search: searchTerm 
   });
+
+  // Extract orders from data wrapper
+  const processingOrders = processingData?.orders || [];
+  const shippedOrders = shippedData?.orders || [];
+  const onHoldOrders = onHoldData?.orders || [];
 
   const updateOrderMutation = useUpdateOrder();
 
@@ -239,7 +244,7 @@ const LogisticsShipping = () => {
             </CardHeader>
             <CardContent>
               <ShipmentTable 
-                orders={processingOrders || []} 
+                orders={processingOrders} 
                 isLoading={processingLoading} 
                 showAddTracking={true}
               />
@@ -254,7 +259,7 @@ const LogisticsShipping = () => {
               <CardDescription>Orders currently being shipped</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable orders={shippedOrders || []} isLoading={shippedLoading} />
+              <ShipmentTable orders={shippedOrders} isLoading={shippedLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -266,7 +271,7 @@ const LogisticsShipping = () => {
               <CardDescription>Orders with shipping issues that need attention</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable orders={onHoldOrders || []} isLoading={onHoldLoading} />
+              <ShipmentTable orders={onHoldOrders} isLoading={onHoldLoading} />
             </CardContent>
           </Card>
         </TabsContent>

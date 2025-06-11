@@ -18,18 +18,23 @@ const RefundsDisputes = () => {
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
 
-  const { data: refundedOrders, isLoading: refundedLoading } = useOrders({ 
+  const { data: refundedData, isLoading: refundedLoading } = useOrders({ 
     status: 'refunded',
     search: searchTerm 
   });
-  const { data: cancelledOrders, isLoading: cancelledLoading } = useOrders({ 
+  const { data: cancelledData, isLoading: cancelledLoading } = useOrders({ 
     status: 'cancelled',
     search: searchTerm 
   });
-  const { data: completedOrders, isLoading: completedLoading } = useOrders({ 
+  const { data: completedData, isLoading: completedLoading } = useOrders({ 
     status: 'completed',
     search: searchTerm 
   });
+
+  // Extract orders from data wrapper
+  const refundedOrders = refundedData?.orders || [];
+  const cancelledOrders = cancelledData?.orders || [];
+  const completedOrders = completedData?.orders || [];
 
   const createRefundMutation = useCreateRefund();
 
@@ -263,7 +268,7 @@ const RefundsDisputes = () => {
           </CardHeader>
           <CardContent>
             <RefundTable 
-              orders={completedOrders || []} 
+              orders={completedOrders} 
               isLoading={completedLoading} 
               showRefundAction={true}
             />
@@ -276,7 +281,7 @@ const RefundsDisputes = () => {
             <CardDescription>Orders that have been refunded</CardDescription>
           </CardHeader>
           <CardContent>
-            <RefundTable orders={refundedOrders || []} isLoading={refundedLoading} />
+            <RefundTable orders={refundedOrders} isLoading={refundedLoading} />
           </CardContent>
         </Card>
 
@@ -286,7 +291,7 @@ const RefundsDisputes = () => {
             <CardDescription>Orders that were cancelled</CardDescription>
           </CardHeader>
           <CardContent>
-            <RefundTable orders={cancelledOrders || []} isLoading={cancelledLoading} />
+            <RefundTable orders={cancelledOrders} isLoading={cancelledLoading} />
           </CardContent>
         </Card>
       </div>
