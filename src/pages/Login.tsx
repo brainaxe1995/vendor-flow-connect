@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,22 +7,20 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const {
+    login
+  } = useAuth();
   const navigate = useNavigate();
-
   const handleLogin = async (role: 'supplier' | 'admin') => {
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
     }
-
     setIsLoading(true);
-    
     try {
       const success = await login(email, password, role);
       if (success) {
@@ -38,12 +35,10 @@ const Login = () => {
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+  return <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Supplier Portal</h1>
+          <h1 className="text-3xl font-bold">Tharavix Portal</h1>
           <p className="text-muted-foreground mt-2">
             Access your WooCommerce integration dashboard
           </p>
@@ -66,28 +61,13 @@ const Login = () => {
               <TabsContent value="supplier" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="supplier-email">Email</Label>
-                  <Input
-                    id="supplier-email"
-                    type="email"
-                    placeholder="supplier@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <Input id="supplier-email" type="email" placeholder="supplier@example.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="supplier-password">Password</Label>
-                  <Input
-                    id="supplier-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <Input id="supplier-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
-                <Button 
-                  onClick={() => handleLogin('supplier')} 
-                  className="w-full"
-                  disabled={isLoading}
-                >
+                <Button onClick={() => handleLogin('supplier')} className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign in as Supplier'}
                 </Button>
               </TabsContent>
@@ -95,28 +75,13 @@ const Login = () => {
               <TabsContent value="admin" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Email</Label>
-                  <Input
-                    id="admin-email"
-                    type="email"
-                    placeholder="admin@tharavix.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <Input id="admin-email" type="email" placeholder="admin@tharavix.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-password">Password</Label>
-                  <Input
-                    id="admin-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <Input id="admin-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
-                <Button 
-                  onClick={() => handleLogin('admin')} 
-                  className="w-full"
-                  disabled={isLoading}
-                >
+                <Button onClick={() => handleLogin('admin')} className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign in as Admin'}
                 </Button>
               </TabsContent>
@@ -128,8 +93,6 @@ const Login = () => {
           <p>Demo credentials: any email/password combination</p>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Login;
