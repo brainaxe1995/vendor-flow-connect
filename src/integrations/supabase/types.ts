@@ -9,16 +9,320 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      compliance_documents: {
+        Row: {
+          created_at: string | null
+          document_name: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          expiry_date: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          supplier_id: string
+          updated_at: string | null
+          verified: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_name: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          expiry_date?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          supplier_id: string
+          updated_at?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_name?: string
+          document_type?: Database["public"]["Enums"]["document_type"]
+          expiry_date?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          supplier_id?: string
+          updated_at?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          data: Json | null
+          id: string
+          message: string
+          read: boolean | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          message: string
+          read?: boolean | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_update_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          current_price: number
+          id: string
+          reason: string | null
+          requested_price: number
+          status: Database["public"]["Enums"]["price_request_status"] | null
+          supplier_id: string
+          updated_at: string | null
+          woocommerce_product_id: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          current_price: number
+          id?: string
+          reason?: string | null
+          requested_price: number
+          status?: Database["public"]["Enums"]["price_request_status"] | null
+          supplier_id: string
+          updated_at?: string | null
+          woocommerce_product_id: number
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          current_price?: number
+          id?: string
+          reason?: string | null
+          requested_price?: number
+          status?: Database["public"]["Enums"]["price_request_status"] | null
+          supplier_id?: string
+          updated_at?: string | null
+          woocommerce_product_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_update_requests_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_proposals: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          lead_time_days: number | null
+          min_quantity: number | null
+          product_name: string
+          proposed_price: number
+          status: Database["public"]["Enums"]["proposal_status"] | null
+          supplier_id: string
+          updated_at: string | null
+          woocommerce_product_id: number | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          lead_time_days?: number | null
+          min_quantity?: number | null
+          product_name: string
+          proposed_price: number
+          status?: Database["public"]["Enums"]["proposal_status"] | null
+          supplier_id: string
+          updated_at?: string | null
+          woocommerce_product_id?: number | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          lead_time_days?: number | null
+          min_quantity?: number | null
+          product_name?: string
+          proposed_price?: number
+          status?: Database["public"]["Enums"]["proposal_status"] | null
+          supplier_id?: string
+          updated_at?: string | null
+          woocommerce_product_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_proposals_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: Json | null
+          company_name: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          address?: Json | null
+          company_name?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          address?: Json | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_activity_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      document_type:
+        | "certificate"
+        | "invoice"
+        | "compliance"
+        | "shipping"
+        | "other"
+      notification_type:
+        | "order"
+        | "product"
+        | "system"
+        | "compliance"
+        | "payment"
+      price_request_status: "pending" | "approved" | "rejected"
+      proposal_status: "pending" | "approved" | "rejected" | "under_review"
+      user_role: "admin" | "supplier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +437,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      document_type: [
+        "certificate",
+        "invoice",
+        "compliance",
+        "shipping",
+        "other",
+      ],
+      notification_type: [
+        "order",
+        "product",
+        "system",
+        "compliance",
+        "payment",
+      ],
+      price_request_status: ["pending", "approved", "rejected"],
+      proposal_status: ["pending", "approved", "rejected", "under_review"],
+      user_role: ["admin", "supplier"],
+    },
   },
 } as const
