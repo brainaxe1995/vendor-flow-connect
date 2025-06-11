@@ -154,7 +154,7 @@ class WooCommerceService {
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page' && key !== 'page') {
-        queryParams.append(key, value.toString());
+        queryParams.append(key, String(value));
       }
     });
     
@@ -207,7 +207,7 @@ class WooCommerceService {
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page' && key !== 'page') {
-        queryParams.append(key, value.toString());
+        queryParams.append(key, String(value));
       }
     });
     
@@ -254,7 +254,7 @@ class WooCommerceService {
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page') {
-        queryParams.append(key, value);
+        queryParams.append(key, String(value));
       }
     });
     
@@ -270,7 +270,7 @@ class WooCommerceService {
   } = {}): Promise<any> {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value) queryParams.append(key, value);
+      if (value) queryParams.append(key, String(value));
     });
     
     const endpoint = `/reports/sales?${queryParams.toString()}`;
