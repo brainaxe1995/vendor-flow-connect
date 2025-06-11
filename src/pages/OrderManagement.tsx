@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,8 +22,8 @@ const OrderManagement = () => {
 
   const perPage = 100;
 
-  // Fetch orders for different statuses with pagination
-  const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = useOrders({ 
+  // Fetch orders for different statuses with proper error handling
+  const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending, error: pendingError } = useOrders({ 
     status: 'pending', 
     search: searchTerm, 
     per_page: perPage,
@@ -45,7 +44,7 @@ const OrderManagement = () => {
     page: currentPage 
   });
 
-  // In Transit logic - orders with tracking numbers and processing/shipped status
+  // In Transit logic - orders with tracking numbers
   const { data: inTransitData, isLoading: inTransitLoading, refetch: refetchInTransit } = useOrders({ 
     status: 'processing', 
     search: searchTerm, 
@@ -90,16 +89,23 @@ const OrderManagement = () => {
     page: currentPage 
   });
 
-  // Extract orders from data wrapper
-  const pendingOrders = pendingData?.orders || [];
-  const processingOrders = processingData?.orders || [];
-  const onHoldOrders = onHoldData?.orders || [];
-  const inTransitOrders = inTransitData?.orders?.filter(order => getTrackingNumber(order)) || [];
-  const completedOrders = completedData?.orders || [];
-  const cancelledOrders = cancelledData?.orders || [];
-  const refundedOrders = refundedData?.orders || [];
-  const failedOrders = failedData?.orders || [];
-  const pendingPaymentOrders = pendingPaymentData?.orders || [];
+  // Extract orders and pagination data from new response format
+  const pendingOrders = pendingData?.data || [];
+  const processingOrders = processingData?.data || [];
+  const onHoldOrders = onHoldData?.data || [];
+  const inTransitOrders = inTransitData?.data?.filter(order => getTrackingNumber(order)) || [];
+  const completedOrders = completedData?.data || [];
+  const cancelledOrders = cancelledData?.data || [];
+  const refundedOrders = refundedData?.data || [];
+  const failedOrders = failedData?.data || [];
+  const pendingPaymentOrders = pendingPaymentData?.data || [];
+
+  // Log data for debugging
+  console.log('Order Management Data:', {
+    pending: { count: pendingOrders.length, totalPages: pendingData?.totalPages, totalRecords: pendingData?.totalRecords },
+    processing: { count: processingOrders.length, totalPages: processingData?.totalPages },
+    error: pendingError
+  });
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -119,17 +125,22 @@ const OrderManagement = () => {
   const getTrackingNumber = (order: any) => {
     if (!order.meta_data) return null;
     
-    // Dynamically detect tracking meta key
+    // Enhanced tracking detection
     const trackingMeta = order.meta_data.find((meta: any) => {
       const key = meta.key.toLowerCase();
-      return key.includes('tracking') || key.includes('track') || key.includes('shipment');
+      return key.includes('tracking') || 
+             key.includes('track') || 
+             key.includes('shipment') ||
+             key.includes('tracking_number') ||
+             key.includes('shipstation') ||
+             key.includes('aftership');
     });
     
     return trackingMeta?.value || null;
   };
 
   const getTrackingMetaKey = (order: any) => {
-    if (!order.meta_data) return '_tracking_number';
+    if (!order.meta_data) return trackingKeys?.[0] || '_tracking_number';
     
     const trackingMeta = order.meta_data.find((meta: any) => {
       const key = meta.key.toLowerCase();
@@ -140,9 +151,11 @@ const OrderManagement = () => {
   };
 
   const handleEditOrder = (order: any) => {
+    console.log('Editing order:', order);
     setEditingOrder(order);
     setOrderStatus(order.status);
     setTrackingNumber(getTrackingNumber(order) || '');
+    setOrderNotes('');
     setIsDialogOpen(true);
   };
 
@@ -155,6 +168,7 @@ const OrderManagement = () => {
       // Update status if changed
       if (orderStatus && orderStatus !== editingOrder.status) {
         updateData.status = orderStatus;
+        console.log('Updating status to:', orderStatus);
       }
       
       // Update tracking number if provided
@@ -166,12 +180,15 @@ const OrderManagement = () => {
             value: trackingNumber
           }
         ];
+        console.log('Updating tracking:', { key: trackingKey, value: trackingNumber });
       }
       
       // Add order notes if provided
       if (orderNotes) {
         updateData.customer_note = orderNotes;
       }
+
+      console.log('Sending update data:', updateData);
 
       await updateOrderMutation.mutateAsync({
         orderId: editingOrder.id,
@@ -250,7 +267,9 @@ const OrderManagement = () => {
           <Card>
             <CardHeader>
               <CardTitle>Pending Orders</CardTitle>
-              <CardDescription>Orders waiting to be processed</CardDescription>
+              <CardDescription>
+                Orders waiting to be processed • {pendingData?.totalRecords || 0} total records
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <OrderTable 
@@ -271,7 +290,9 @@ const OrderManagement = () => {
           <Card>
             <CardHeader>
               <CardTitle>Processing Orders</CardTitle>
-              <CardDescription>Orders currently being prepared</CardDescription>
+              <CardDescription>
+                Orders currently being prepared • {processingData?.totalRecords || 0} total records
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <OrderTable 
@@ -293,7 +314,9 @@ const OrderManagement = () => {
           <Card>
             <CardHeader>
               <CardTitle>In Transit Orders</CardTitle>
-              <CardDescription>Orders with tracking numbers that are shipped</CardDescription>
+              <CardDescription>
+                Orders with tracking numbers that are shipped • {inTransitOrders.length} orders
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <OrderTable 

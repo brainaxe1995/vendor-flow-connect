@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { wooCommerceService, WooCommerceOrder, WooCommerceProduct } from '../services/woocommerce';
+import { wooCommerceService, WooCommerceOrder, WooCommerceProduct, WooCommerceResponse } from '../services/woocommerce';
 import { WooCommerceConfig, OrderStats, ProductStats, Notification } from '../types/woocommerce';
 
 export const useWooCommerceConfig = () => {
@@ -13,7 +13,6 @@ export const useWooCommerceConfig = () => {
     if (savedConfig) {
       try {
         const parsedConfig = JSON.parse(savedConfig);
-        // Validate the parsed config
         if (parsedConfig.storeUrl && parsedConfig.consumerKey && parsedConfig.consumerSecret) {
           setConfig(parsedConfig);
           wooCommerceService.setConfig(parsedConfig);
@@ -31,12 +30,10 @@ export const useWooCommerceConfig = () => {
 
   const saveConfig = async (newConfig: WooCommerceConfig) => {
     try {
-      // Validate config before testing
       if (!newConfig.storeUrl?.trim() || !newConfig.consumerKey?.trim() || !newConfig.consumerSecret?.trim()) {
         throw new Error('Missing required configuration fields');
       }
 
-      // Test the connection before saving
       wooCommerceService.setConfig(newConfig);
       const isConnected = await wooCommerceService.testConnection();
       
@@ -54,7 +51,7 @@ export const useWooCommerceConfig = () => {
       return isConnected;
     } catch (error) {
       console.error('Failed to save config:', error);
-      throw error; // Re-throw to allow caller to handle
+      throw error;
     }
   };
 
@@ -75,32 +72,31 @@ export const useOrders = (params?: {
   
   return useQuery({
     queryKey: ['orders', params],
-    queryFn: async () => {
+    queryFn: async (): Promise<WooCommerceResponse<WooCommerceOrder[]>> => {
       try {
-        const orders = await wooCommerceService.getOrders(params);
-        return {
-          orders: Array.isArray(orders) ? orders : [],
-          totalPages: Math.ceil((orders?.length || 0) / (params?.per_page || 100))
-        };
+        console.log('Fetching orders with params:', params);
+        const response = await wooCommerceService.getOrders(params);
+        console.log('Orders response:', response);
+        return response;
       } catch (error) {
         console.error('Failed to fetch orders:', error);
-        // Return empty result instead of throwing to prevent UI crashes
         return {
-          orders: [],
-          totalPages: 0
+          data: [],
+          totalPages: 0,
+          totalRecords: 0,
+          hasMore: false
         };
       }
     },
     enabled: isConfigured,
     refetchInterval: 30000,
     retry: (failureCount, error: any) => {
-      // Don't retry on authentication errors
       if (error?.status === 401 || error?.status === 403) {
         return false;
       }
       return failureCount < 2;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -128,6 +124,7 @@ export const useUpdateOrder = () => {
   return useMutation({
     mutationFn: async ({ orderId, data }: { orderId: number; data: Partial<WooCommerceOrder> }) => {
       try {
+        console.log('Updating order mutation:', orderId, data);
         return await wooCommerceService.updateOrder(orderId, data);
       } catch (error) {
         console.error(`Failed to update order ${orderId}:`, error);
@@ -138,6 +135,7 @@ export const useUpdateOrder = () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['order'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      console.log('Order update successful, queries invalidated');
     },
     onError: (error) => {
       console.error('Update order mutation failed:', error);
@@ -156,7 +154,20 @@ export const useProducts = (params?: {
   
   return useQuery({
     queryKey: ['products', params],
-    queryFn: () => wooCommerceService.getProducts(params),
+    queryFn: async () => {
+      try {
+        const response = await wooCommerceService.getProducts(params);
+        return response;
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+        return {
+          data: [],
+          totalPages: 0,
+          totalRecords: 0,
+          hasMore: false
+        };
+      }
+    },
     enabled: isConfigured,
     refetchInterval: 60000,
     retry: 3,
@@ -176,51 +187,54 @@ export const useUpdateProduct = () => {
 };
 
 export const useOrderStats = () => {
-  const { data: orders, isLoading, error } = useOrders({ per_page: 100 });
+  const { data: response, isLoading, error } = useOrders({ per_page: 100 });
   
-  const stats = orders?.orders ? {
-    pending: orders.orders.filter(o => o.status === 'pending').length,
-    processing: orders.orders.filter(o => o.status === 'processing').length,
-    onHold: orders.orders.filter(o => o.status === 'on-hold').length,
-    completed: orders.orders.filter(o => o.status === 'completed').length,
-    cancelled: orders.orders.filter(o => o.status === 'cancelled').length,
-    refunded: orders.orders.filter(o => o.status === 'refunded').length,
-    failed: orders.orders.filter(o => o.status === 'failed').length,
-    pendingPayment: orders.orders.filter(o => o.status === 'pending-payment').length,
-    totalRevenue: orders.orders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
-    refundRate: orders.orders.length > 0 ? (orders.orders.filter(o => o.status === 'refunded').length / orders.orders.length) * 100 : 0,
+  const stats = response?.data ? {
+    pending: response.data.filter(o => o.status === 'pending').length,
+    processing: response.data.filter(o => o.status === 'processing').length,
+    onHold: response.data.filter(o => o.status === 'on-hold').length,
+    completed: response.data.filter(o => o.status === 'completed').length,
+    cancelled: response.data.filter(o => o.status === 'cancelled').length,
+    refunded: response.data.filter(o => o.status === 'refunded').length,
+    failed: response.data.filter(o => o.status === 'failed').length,
+    pendingPayment: response.data.filter(o => o.status === 'pending-payment').length,
+    totalRevenue: response.data.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
+    refundRate: response.data.length > 0 ? (response.data.filter(o => o.status === 'refunded').length / response.data.length) * 100 : 0,
   } : undefined;
 
   return { data: stats, isLoading, error };
 };
 
 export const useProductStats = () => {
-  const { data: products, isLoading, error } = useProducts({ per_page: 100 });
+  const { data: response, isLoading, error } = useProducts({ per_page: 100 });
   
-  const stats = products ? {
-    total: products.length,
-    inStock: products.filter(p => p.stock_status === 'instock').length,
-    outOfStock: products.filter(p => p.stock_status === 'outofstock').length,
-    onBackorder: products.filter(p => p.stock_status === 'onbackorder').length,
-    lowStock: products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
+  const stats = response?.data ? {
+    total: response.data.length,
+    inStock: response.data.filter(p => p.stock_status === 'instock').length,
+    outOfStock: response.data.filter(p => p.stock_status === 'outofstock').length,
+    onBackorder: response.data.filter(p => p.stock_status === 'onbackorder').length,
+    lowStock: response.data.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
   } : undefined;
 
   return { data: stats, isLoading, error };
 };
 
 export const useNotifications = () => {
-  const { data: orders } = useOrders({ per_page: 50 });
-  const { data: products } = useProducts({ per_page: 50 });
+  const { data: ordersResponse } = useOrders({ per_page: 50 });
+  const { data: productsResponse } = useProducts({ per_page: 50 });
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    if (!orders?.orders || !products) return;
+    const orders = ordersResponse?.data;
+    const products = productsResponse?.data;
+    
+    if (!orders || !products) return;
 
     const newNotifications: Notification[] = [];
     const now = new Date();
 
     // New orders notifications (last 24 hours)
-    orders.orders.forEach(order => {
+    orders.forEach(order => {
       const orderDate = new Date(order.date_created);
       const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
       
@@ -236,7 +250,6 @@ export const useNotifications = () => {
         });
       }
 
-      // On-hold orders that need attention
       if (order.status === 'on-hold') {
         newNotifications.push({
           id: `hold-${order.id}`,
@@ -266,7 +279,7 @@ export const useNotifications = () => {
     });
 
     setNotifications(newNotifications);
-  }, [orders, products]);
+  }, [ordersResponse, productsResponse]);
 
   return { data: notifications, isLoading: false };
 };

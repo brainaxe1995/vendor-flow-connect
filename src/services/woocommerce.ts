@@ -79,6 +79,13 @@ export interface TopSellerReport {
   product_price: string;
 }
 
+export interface WooCommerceResponse<T> {
+  data: T;
+  totalPages: number;
+  totalRecords: number;
+  hasMore: boolean;
+}
+
 class WooCommerceService {
   private config: WooCommerceConfig | null = null;
 
@@ -101,7 +108,7 @@ class WooCommerceService {
     return btoa(`${this.config.consumerKey}:${this.config.consumerSecret}`);
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
+  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
     if (!this.config) {
       throw new Error('WooCommerce configuration not set. Please configure API credentials in Settings.');
     }
@@ -130,14 +137,20 @@ class WooCommerceService {
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      return response.json();
+      return response;
     } catch (error) {
       console.error('WooCommerce API request failed:', error);
       throw error;
     }
   }
 
-  // Orders API
+  private parseHeaders(response: Response) {
+    const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1');
+    const totalRecords = parseInt(response.headers.get('X-WP-Total') || '0');
+    return { totalPages, totalRecords };
+  }
+
+  // Orders API with proper pagination
   async getOrders(params: {
     status?: string;
     per_page?: number;
@@ -145,11 +158,13 @@ class WooCommerceService {
     after?: string;
     before?: string;
     search?: string;
-  } = {}): Promise<WooCommerceOrder[]> {
+    meta_key?: string;
+    meta_compare?: string;
+  } = {}): Promise<WooCommerceResponse<WooCommerceOrder[]>> {
     const queryParams = new URLSearchParams();
     
-    // Default to reasonable limits
-    queryParams.append('per_page', (params.per_page || 50).toString());
+    // Increase default per_page to 100 for better performance
+    queryParams.append('per_page', (params.per_page || 100).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -160,19 +175,31 @@ class WooCommerceService {
     
     const endpoint = `/orders?${queryParams.toString()}`;
     console.log('Fetching orders with params:', params);
-    return this.makeRequest(endpoint);
+    
+    const response = await this.makeRequest(endpoint);
+    const data = await response.json();
+    const { totalPages, totalRecords } = this.parseHeaders(response);
+    
+    return {
+      data: Array.isArray(data) ? data : [],
+      totalPages,
+      totalRecords,
+      hasMore: (params.page || 1) < totalPages
+    };
   }
 
   async getOrder(orderId: number): Promise<WooCommerceOrder> {
-    return this.makeRequest(`/orders/${orderId}`);
+    const response = await this.makeRequest(`/orders/${orderId}`);
+    return response.json();
   }
 
   async updateOrder(orderId: number, data: Partial<WooCommerceOrder>): Promise<WooCommerceOrder> {
     console.log('Updating order:', orderId, data);
-    return this.makeRequest(`/orders/${orderId}`, {
+    const response = await this.makeRequest(`/orders/${orderId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    return response.json();
   }
 
   async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey?: string): Promise<WooCommerceOrder> {
@@ -180,7 +207,6 @@ class WooCommerceService {
     const updateData = {
       meta_data: [
         {
-          id: 0, // WooCommerce will assign the actual ID
           key,
           value: trackingNumber,
         }
@@ -191,18 +217,17 @@ class WooCommerceService {
     return this.updateOrder(orderId, updateData);
   }
 
-  // Products API
+  // Products API with proper pagination
   async getProducts(params: {
     status?: string;
     per_page?: number;
     page?: number;
     search?: string;
     stock_status?: string;
-  } = {}): Promise<WooCommerceProduct[]> {
+  } = {}): Promise<WooCommerceResponse<WooCommerceProduct[]>> {
     const queryParams = new URLSearchParams();
     
-    // Default to reasonable limits
-    queryParams.append('per_page', (params.per_page || 50).toString());
+    queryParams.append('per_page', (params.per_page || 100).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -213,19 +238,31 @@ class WooCommerceService {
     
     const endpoint = `/products?${queryParams.toString()}`;
     console.log('Fetching products with params:', params);
-    return this.makeRequest(endpoint);
+    
+    const response = await this.makeRequest(endpoint);
+    const data = await response.json();
+    const { totalPages, totalRecords } = this.parseHeaders(response);
+    
+    return {
+      data: Array.isArray(data) ? data : [],
+      totalPages,
+      totalRecords,
+      hasMore: (params.page || 1) < totalPages
+    };
   }
 
   async getProduct(productId: number): Promise<WooCommerceProduct> {
-    return this.makeRequest(`/products/${productId}`);
+    const response = await this.makeRequest(`/products/${productId}`);
+    return response.json();
   }
 
   async updateProduct(productId: number, data: Partial<WooCommerceProduct>): Promise<WooCommerceProduct> {
     console.log('Updating product:', productId, data);
-    return this.makeRequest(`/products/${productId}`, {
+    const response = await this.makeRequest(`/products/${productId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    return response.json();
   }
 
   // Reports API
@@ -240,7 +277,8 @@ class WooCommerceService {
     });
     
     const endpoint = `/reports/orders?${queryParams.toString()}`;
-    return this.makeRequest(endpoint);
+    const response = await this.makeRequest(endpoint);
+    return response.json();
   }
 
   async getTopSellersReport(params: {
@@ -260,7 +298,8 @@ class WooCommerceService {
     
     const endpoint = `/reports/top_sellers?${queryParams.toString()}`;
     console.log('Fetching top sellers report');
-    return this.makeRequest(endpoint);
+    const response = await this.makeRequest(endpoint);
+    return response.json();
   }
 
   async getSalesReport(params: {
@@ -274,12 +313,14 @@ class WooCommerceService {
     });
     
     const endpoint = `/reports/sales?${queryParams.toString()}`;
-    return this.makeRequest(endpoint);
+    const response = await this.makeRequest(endpoint);
+    return response.json();
   }
 
   // Refunds API
   async getRefunds(orderId: number): Promise<any[]> {
-    return this.makeRequest(`/orders/${orderId}/refunds`);
+    const response = await this.makeRequest(`/orders/${orderId}/refunds`);
+    return response.json();
   }
 
   async createRefund(orderId: number, data: {
@@ -289,10 +330,11 @@ class WooCommerceService {
     line_items?: Array<{ id: number; quantity: number; refund_total: string }>;
   }): Promise<any> {
     console.log('Creating refund for order:', orderId, data);
-    return this.makeRequest(`/orders/${orderId}/refunds`, {
+    const response = await this.makeRequest(`/orders/${orderId}/refunds`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return response.json();
   }
 
   // Test connection
@@ -308,17 +350,22 @@ class WooCommerceService {
     }
   }
 
-  // Detect tracking meta key
+  // Enhanced tracking meta key detection
   async detectTrackingMetaKey(): Promise<string[]> {
     try {
       console.log('Detecting tracking meta keys...');
-      const orders = await this.getOrders({ per_page: 10 });
+      const response = await this.getOrders({ per_page: 20 });
       const trackingKeys = new Set<string>();
       
-      orders.forEach(order => {
+      response.data.forEach(order => {
         order.meta_data.forEach(meta => {
           const keyLower = meta.key.toLowerCase();
-          if (keyLower.includes('tracking') || keyLower.includes('track') || keyLower.includes('shipment')) {
+          if (keyLower.includes('tracking') || 
+              keyLower.includes('track') || 
+              keyLower.includes('shipment') ||
+              keyLower.includes('tracking_number') ||
+              keyLower.includes('shipstation') ||
+              keyLower.includes('aftership')) {
             trackingKeys.add(meta.key);
           }
         });
@@ -326,10 +373,10 @@ class WooCommerceService {
       
       const keys = Array.from(trackingKeys);
       console.log('Detected tracking keys:', keys);
-      return keys;
+      return keys.length > 0 ? keys : ['_tracking_number'];
     } catch (error) {
       console.error('Failed to detect tracking meta keys:', error);
-      return ['_tracking_number']; // Default fallback
+      return ['_tracking_number'];
     }
   }
 }
