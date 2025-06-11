@@ -1,30 +1,41 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package, Truck, CheckCircle, RefreshCw, AlertTriangle, DollarSign, TrendingUp, Bell } from 'lucide-react';
+import { useOrderStats, useProductStats, useNotifications, useWooCommerceConfig } from '../hooks/useWooCommerce';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
-  // Mock data for demonstration
-  const stats = {
-    pendingOrders: 24,
-    inTransit: 45,
-    delivered: 189,
-    refundRequests: 3,
-    lowStockAlerts: 7,
-    revenueThisMonth: 85420,
-    topSellingProducts: [
-      { name: 'Premium Wireless Headphones', sales: 156 },
-      { name: 'Smart Fitness Tracker', sales: 134 },
-      { name: 'Bluetooth Speaker', sales: 98 }
-    ]
-  };
+  const { config } = useWooCommerceConfig();
+  const { data: orderStats, isLoading: orderStatsLoading } = useOrderStats();
+  const { data: productStats, isLoading: productStatsLoading } = useProductStats();
+  const { data: notifications } = useNotifications();
 
-  const notifications = [
-    { id: 1, type: 'delay', message: 'Order #12345 delayed at customs', time: '2 hours ago' },
-    { id: 2, type: 'stock', message: 'Wireless Headphones running low stock', time: '4 hours ago' },
-    { id: 3, type: 'delivery', message: 'Order #12340 delivered successfully', time: '6 hours ago' }
-  ];
+  useEffect(() => {
+    if (!config) {
+      toast.error('WooCommerce not configured. Please go to Settings & API to configure your store connection.');
+    }
+  }, [config]);
+
+  const recentNotifications = notifications.slice(0, 3);
+
+  if (!config) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">WooCommerce Not Configured</h2>
+          <p className="text-muted-foreground mb-4">
+            Please configure your WooCommerce API credentials in Settings & API to start using the portal.
+          </p>
+          <a href="/settings" className="text-primary hover:underline">
+            Go to Settings & API
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -43,48 +54,56 @@ const Dashboard = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingOrders}</div>
+            <div className="text-2xl font-bold">
+              {orderStatsLoading ? '...' : orderStats?.pending || 0}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +2 from yesterday
+              Awaiting processing
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Transit</CardTitle>
+            <CardTitle className="text-sm font-medium">Processing</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.inTransit}</div>
+            <div className="text-2xl font-bold">
+              {orderStatsLoading ? '...' : orderStats?.processing || 0}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +5 from yesterday
+              Being prepared
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
+            <CardTitle className="text-sm font-medium">On Hold</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {orderStatsLoading ? '...' : orderStats?.onHold || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Require attention
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.delivered}</div>
+            <div className="text-2xl font-bold">
+              {orderStatsLoading ? '...' : orderStats?.completed || 0}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +12 from yesterday
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Refund Requests</CardTitle>
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.refundRequests}</div>
-            <p className="text-xs text-muted-foreground">
-              -1 from yesterday
+              Successfully delivered
             </p>
           </CardContent>
         </Card>
@@ -95,13 +114,15 @@ const Dashboard = () => {
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue This Month</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.revenueThisMonth.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                ${orderStatsLoading ? '...' : orderStats?.totalRevenue?.toLocaleString() || '0'}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +15% from last month
+                From all orders
               </p>
             </CardContent>
           </Card>
@@ -112,7 +133,9 @@ const Dashboard = () => {
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">{stats.lowStockAlerts}</div>
+              <div className="text-2xl font-bold text-destructive">
+                {productStatsLoading ? '...' : productStats?.lowStock || 0}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Products need restocking
               </p>
@@ -120,30 +143,52 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Top Selling Products */}
+        {/* Product Stats */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Top Selling Products
+              Product Statistics
             </CardTitle>
             <CardDescription>
-              Best performing products this month
+              Current inventory status
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.topSellingProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
-                      {index + 1}
-                    </div>
-                    <span className="font-medium">{product.name}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium">
+                    ✓
                   </div>
-                  <Badge variant="secondary">{product.sales} sales</Badge>
+                  <span className="font-medium">In Stock</span>
                 </div>
-              ))}
+                <Badge variant="secondary">
+                  {productStatsLoading ? '...' : productStats?.inStock || 0} products
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-xs font-medium">
+                    ✗
+                  </div>
+                  <span className="font-medium">Out of Stock</span>
+                </div>
+                <Badge variant="secondary">
+                  {productStatsLoading ? '...' : productStats?.outOfStock || 0} products
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center text-xs font-medium">
+                    !
+                  </div>
+                  <span className="font-medium">Low Stock</span>
+                </div>
+                <Badge variant="secondary">
+                  {productStatsLoading ? '...' : productStats?.lowStock || 0} products
+                </Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -157,23 +202,30 @@ const Dashboard = () => {
             Recent Notifications
           </CardTitle>
           <CardDescription>
-            Latest updates and alerts
+            Latest updates and alerts from your store
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {notifications.map((notification) => (
-              <div key={notification.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  notification.type === 'delay' ? 'bg-destructive' :
-                  notification.type === 'stock' ? 'bg-warning' : 'bg-primary'
-                }`} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{notification.message}</p>
-                  <p className="text-xs text-muted-foreground">{notification.time}</p>
+            {recentNotifications.length > 0 ? (
+              recentNotifications.map((notification) => (
+                <div key={notification.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+                  <div className={`w-2 h-2 rounded-full mt-2 ${
+                    notification.type === 'order' ? 'bg-primary' :
+                    notification.type === 'stock' ? 'bg-destructive' : 'bg-warning'
+                  }`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{notification.title}</p>
+                    <p className="text-xs text-muted-foreground">{notification.message}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(notification.time).toLocaleString()}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No recent notifications
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

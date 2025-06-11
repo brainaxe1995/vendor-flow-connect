@@ -4,6 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
 import SupplierLayout from "./components/layouts/SupplierLayout";
 import Dashboard from "./pages/Dashboard";
 import OrderManagement from "./pages/OrderManagement";
@@ -23,30 +26,37 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/" element={<SupplierLayout />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="orders" element={<OrderManagement />} />
-            <Route path="logistics" element={<LogisticsShipping />} />
-            <Route path="products" element={<ProductManagement />} />
-            <Route path="sourcing" element={<SourcingPricing />} />
-            <Route path="inventory" element={<InventoryManagement />} />
-            <Route path="refunds" element={<RefundsDisputes />} />
-            <Route path="payments" element={<PaymentsBilling />} />
-            <Route path="communication" element={<CommunicationCenter />} />
-            <Route path="compliance" element={<ComplianceDocs />} />
-            <Route path="analytics" element={<AnalyticsReports />} />
-            <Route path="settings" element={<SettingsAPI />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <SupplierLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="orders" element={<OrderManagement />} />
+              <Route path="logistics" element={<LogisticsShipping />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="sourcing" element={<SourcingPricing />} />
+              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="refunds" element={<RefundsDisputes />} />
+              <Route path="payments" element={<PaymentsBilling />} />
+              <Route path="communication" element={<CommunicationCenter />} />
+              <Route path="compliance" element={<ComplianceDocs />} />
+              <Route path="analytics" element={<AnalyticsReports />} />
+              <Route path="settings" element={<SettingsAPI />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
