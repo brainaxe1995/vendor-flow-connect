@@ -1,466 +1,258 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Package, MapPin, RotateCcw, TrendingDown, TrendingUp, Warehouse } from 'lucide-react';
+import { Search, Edit, AlertTriangle, Package, Loader2 } from 'lucide-react';
+import { useProducts, useUpdateProduct } from '../hooks/useWooCommerce';
+import { toast } from 'sonner';
 
 const InventoryManagement = () => {
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [newStock, setNewStock] = useState('');
 
-  // Mock inventory data with WooCommerce sync
-  const inventoryData = {
-    current: [
-      {
-        id: '1',
-        product: 'Premium Wireless Headphones',
-        sku: 'PWH-001',
-        currentStock: 45,
-        reorderPoint: 20,
-        safetyStock: 10,
-        warehouseLocation: 'A1-B2-C3',
-        lastRestocked: '2024-01-10',
-        supplier: 'Audio Tech Ltd.',
-        unitCost: 125.00,
-        totalValue: 5625.00,
-        status: 'adequate'
-      },
-      {
-        id: '2',
-        product: 'Smart Fitness Tracker',
-        sku: 'SFT-002',
-        currentStock: 8,
-        reorderPoint: 15,
-        safetyStock: 5,
-        warehouseLocation: 'B2-C1-D2',
-        lastRestocked: '2024-01-05',
-        supplier: 'Wearable Tech Co.',
-        unitCost: 89.99,
-        totalValue: 719.92,
-        status: 'low'
-      },
-      {
-        id: '3',
-        product: 'Bluetooth Speaker Pro',
-        sku: 'BSP-003',
-        currentStock: 0,
-        reorderPoint: 25,
-        safetyStock: 10,
-        warehouseLocation: 'C1-D2-E1',
-        lastRestocked: '2023-12-20',
-        supplier: 'Sound Systems Inc.',
-        unitCost: 65.00,
-        totalValue: 0,
-        status: 'out-of-stock'
-      }
-    ],
-    stockLogs: [
-      {
-        id: 'LOG001',
-        product: 'Premium Wireless Headphones',
-        sku: 'PWH-001',
-        type: 'restock',
-        quantity: 50,
-        previousStock: 15,
-        newStock: 65,
-        date: '2024-01-10 14:30',
-        reference: 'PO-2024-001',
-        user: 'Warehouse Manager'
-      },
-      {
-        id: 'LOG002',
-        product: 'Smart Fitness Tracker',
-        sku: 'SFT-002',
-        type: 'sale',
-        quantity: -15,
-        previousStock: 23,
-        newStock: 8,
-        date: '2024-01-15 10:15',
-        reference: 'Order #12345',
-        user: 'WooCommerce Sync'
-      },
-      {
-        id: 'LOG003',
-        product: 'Premium Wireless Headphones',
-        sku: 'PWH-001',
-        type: 'adjustment',
-        quantity: -20,
-        previousStock: 65,
-        newStock: 45,
-        date: '2024-01-15 16:45',
-        reference: 'INV-ADJ-001',
-        user: 'Inventory Team'
-      }
-    ],
-    turnover: [
-      {
-        product: 'Premium Wireless Headphones',
-        sku: 'PWH-001',
-        soldLast30Days: 35,
-        averageStock: 40,
-        turnoverRate: 0.875,
-        daysOnHand: 34.3,
-        performance: 'good'
-      },
-      {
-        product: 'Smart Fitness Tracker',
-        sku: 'SFT-002',
-        soldLast30Days: 28,
-        averageStock: 18,
-        turnoverRate: 1.556,
-        daysOnHand: 19.3,
-        performance: 'excellent'
-      },
-      {
-        product: 'Bluetooth Speaker Pro',
-        sku: 'BSP-003',
-        soldLast30Days: 45,
-        averageStock: 12,
-        turnoverRate: 3.75,
-        daysOnHand: 8.0,
-        performance: 'high-demand'
-      }
-    ]
+  const { data: products, isLoading, refetch } = useProducts({ search: searchTerm });
+  const updateProductMutation = useUpdateProduct();
+
+  const getStockStatus = (product: any) => {
+    if (product.stock_status === 'outofstock' || product.stock_quantity === 0) {
+      return { label: 'Out of Stock', color: 'bg-red-100 text-red-800', icon: '🔴' };
+    }
+    if (product.stock_quantity > 0 && product.stock_quantity <= 5) {
+      return { label: 'Low Stock', color: 'bg-yellow-100 text-yellow-800', icon: '🟡' };
+    }
+    if (product.stock_quantity > 5 && product.stock_quantity <= 20) {
+      return { label: 'Medium Stock', color: 'bg-blue-100 text-blue-800', icon: '🔵' };
+    }
+    return { label: 'In Stock', color: 'bg-green-100 text-green-800', icon: '🟢' };
   };
 
-  const getStockStatus = (current: number, reorderPoint: number) => {
-    if (current === 0) return { label: 'Out of Stock', color: 'bg-red-100 text-red-800' };
-    if (current <= reorderPoint) return { label: 'Low Stock', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'Adequate', color: 'bg-green-100 text-green-800' };
+  const handleUpdateStock = async () => {
+    if (!editingProduct || !newStock) return;
+
+    try {
+      await updateProductMutation.mutateAsync({
+        productId: editingProduct.id,
+        data: {
+          stock_quantity: parseInt(newStock),
+          manage_stock: true,
+          stock_status: parseInt(newStock) > 0 ? 'instock' : 'outofstock'
+        }
+      });
+
+      toast.success('Stock updated successfully');
+      setEditingProduct(null);
+      setNewStock('');
+      refetch();
+    } catch (error) {
+      toast.error('Failed to update stock');
+      console.error('Update stock error:', error);
+    }
   };
 
-  const getPerformanceColor = (performance: string) => {
-    const colors = {
-      'excellent': 'bg-green-100 text-green-800',
-      'good': 'bg-blue-100 text-blue-800',
-      'average': 'bg-yellow-100 text-yellow-800',
-      'poor': 'bg-red-100 text-red-800',
-      'high-demand': 'bg-purple-100 text-purple-800'
-    };
-    return colors[performance] || 'bg-gray-100 text-gray-800';
-  };
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="ml-2">Loading inventory...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const lowStockProducts = products?.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5) || [];
+  const outOfStockProducts = products?.filter(p => p.stock_quantity === 0 || p.stock_status === 'outofstock') || [];
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Inventory Management</h1>
-        <div className="flex gap-3">
-          <Button variant="outline">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Sync WooCommerce
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Package className="w-4 h-4 mr-2" />
-                Stock Adjustment
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Stock Adjustment</DialogTitle>
-                <DialogDescription>
-                  Manually adjust inventory levels
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div>
-                  <Label htmlFor="adjustProduct">Select Product</Label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option>Premium Wireless Headphones (PWH-001)</option>
-                    <option>Smart Fitness Tracker (SFT-002)</option>
-                    <option>Bluetooth Speaker Pro (BSP-003)</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="currentStock">Current Stock</Label>
-                    <Input id="currentStock" value="45" disabled />
-                  </div>
-                  <div>
-                    <Label htmlFor="adjustment">Adjustment (+/-)</Label>
-                    <Input id="adjustment" type="number" placeholder="0" />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="reason">Reason</Label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option>Damaged goods</option>
-                    <option>Count correction</option>
-                    <option>Return to supplier</option>
-                    <option>Physical count adjustment</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="reference">Reference Number</Label>
-                  <Input id="reference" placeholder="Enter reference (optional)" />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline">Cancel</Button>
-                  <Button>Apply Adjustment</Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            placeholder="Search products..." 
+            className="pl-10 w-64"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+      {/* Alert Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="border-yellow-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-800">
+              <AlertTriangle className="w-5 h-5" />
+              Low Stock Alert
+            </CardTitle>
+            <CardDescription>{lowStockProducts.length} products need attention</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">53</div>
-            <p className="text-xs text-muted-foreground">
-              Across all products
-            </p>
+            {lowStockProducts.length > 0 ? (
+              <div className="space-y-2">
+                {lowStockProducts.slice(0, 3).map((product) => (
+                  <div key={product.id} className="flex justify-between items-center">
+                    <span className="text-sm">{product.name}</span>
+                    <Badge variant="secondary">{product.stock_quantity} left</Badge>
+                  </div>
+                ))}
+                {lowStockProducts.length > 3 && (
+                  <p className="text-sm text-muted-foreground">+{lowStockProducts.length - 3} more</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No low stock items</p>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-800">
+              <Package className="w-5 h-5" />
+              Out of Stock
+            </CardTitle>
+            <CardDescription>{outOfStockProducts.length} products unavailable</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">1</div>
-            <p className="text-xs text-muted-foreground">
-              Needs immediate attention
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$6,344.92</div>
-            <p className="text-xs text-muted-foreground">
-              Current inventory value
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Turnover</CardTitle>
-            <RotateCcw className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2.06x</div>
-            <p className="text-xs text-muted-foreground">
-              Monthly turnover rate
-            </p>
+            {outOfStockProducts.length > 0 ? (
+              <div className="space-y-2">
+                {outOfStockProducts.slice(0, 3).map((product) => (
+                  <div key={product.id} className="flex justify-between items-center">
+                    <span className="text-sm">{product.name}</span>
+                    <Badge variant="destructive">Out of Stock</Badge>
+                  </div>
+                ))}
+                {outOfStockProducts.length > 3 && (
+                  <p className="text-sm text-muted-foreground">+{outOfStockProducts.length - 3} more</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">All products in stock</p>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="current" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="current">Current Stock</TabsTrigger>
-          <TabsTrigger value="logs">Stock Logs</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="current">
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Inventory Levels</CardTitle>
-              <CardDescription>Real-time stock levels synced with WooCommerce</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Current Stock</TableHead>
-                    <TableHead>Reorder Point</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Unit Cost</TableHead>
-                    <TableHead>Total Value</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+      {/* Inventory Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Products</CardTitle>
+          <CardDescription>Manage stock levels for all products</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Current Stock</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products?.map((product) => {
+                const stockStatus = getStockStatus(product);
+                return (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {product.images?.[0] && (
+                          <img 
+                            src={product.images[0].src} 
+                            alt={product.name} 
+                            className="w-8 h-8 rounded object-cover"
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">ID: {product.id}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{product.stock_quantity || 0}</span>
+                        <span className="text-lg">{stockStatus.icon}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={stockStatus.color}>
+                        {stockStatus.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>${product.price || product.regular_price}</TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setNewStock(product.stock_quantity?.toString() || '0');
+                            }}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Update Stock: {product.name}</DialogTitle>
+                            <DialogDescription>
+                              Adjust inventory levels for this product
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div>
+                              <Label htmlFor="stock">New Stock Quantity</Label>
+                              <Input 
+                                id="stock" 
+                                type="number" 
+                                value={newStock}
+                                onChange={(e) => setNewStock(e.target.value)}
+                                placeholder="Enter stock quantity"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" onClick={() => setEditingProduct(null)}>
+                                Cancel
+                              </Button>
+                              <Button 
+                                onClick={handleUpdateStock}
+                                disabled={updateProductMutation.isPending}
+                              >
+                                {updateProductMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  'Update Stock'
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inventoryData.current.map((item) => {
-                    const stockStatus = getStockStatus(item.currentStock, item.reorderPoint);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.product}</TableCell>
-                        <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold">{item.currentStock}</span>
-                            {item.currentStock <= item.reorderPoint && (
-                              <AlertTriangle className="w-4 h-4 text-destructive" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{item.reorderPoint}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {item.warehouseLocation}
-                          </div>
-                        </TableCell>
-                        <TableCell>${item.unitCost.toFixed(2)}</TableCell>
-                        <TableCell>${item.totalValue.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge className={stockStatus.color}>
-                            {stockStatus.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Package className="w-4 h-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Update Stock Settings</DialogTitle>
-                                  <DialogDescription>
-                                    Modify reorder points and safety stock levels
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label htmlFor="reorderPoint">Reorder Point</Label>
-                                      <Input id="reorderPoint" type="number" defaultValue={item.reorderPoint} />
-                                    </div>
-                                    <div>
-                                      <Label htmlFor="safetyStock">Safety Stock</Label>
-                                      <Input id="safetyStock" type="number" defaultValue={item.safetyStock} />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="location">Warehouse Location</Label>
-                                    <Input id="location" defaultValue={item.warehouseLocation} />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <Button variant="outline">Cancel</Button>
-                                    <Button>Update</Button>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="logs">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Movement Logs</CardTitle>
-              <CardDescription>Complete history of all stock changes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Previous</TableHead>
-                    <TableHead>New Stock</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>User</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inventoryData.stockLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{log.date}</TableCell>
-                      <TableCell>{log.product}</TableCell>
-                      <TableCell>
-                        <Badge variant={log.type === 'restock' ? 'default' : log.type === 'sale' ? 'secondary' : 'outline'}>
-                          {log.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className={log.quantity > 0 ? 'text-green-600' : 'text-red-600'}>
-                          {log.quantity > 0 ? '+' : ''}{log.quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell>{log.previousStock}</TableCell>
-                      <TableCell>{log.newStock}</TableCell>
-                      <TableCell className="font-mono text-sm">{log.reference}</TableCell>
-                      <TableCell>{log.user}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventory Turnover Analysis</CardTitle>
-                <CardDescription>Product performance and turnover statistics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Sold (30d)</TableHead>
-                      <TableHead>Avg Stock</TableHead>
-                      <TableHead>Turnover Rate</TableHead>
-                      <TableHead>Days on Hand</TableHead>
-                      <TableHead>Performance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inventoryData.turnover.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.product}</TableCell>
-                        <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                        <TableCell>{item.soldLast30Days}</TableCell>
-                        <TableCell>{item.averageStock}</TableCell>
-                        <TableCell>{item.turnoverRate.toFixed(2)}x</TableCell>
-                        <TableCell>{item.daysOnHand.toFixed(1)} days</TableCell>
-                        <TableCell>
-                          <Badge className={getPerformanceColor(item.performance)}>
-                            {item.performance.replace('-', ' ')}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -16,13 +16,19 @@ import SourcingPricing from "./pages/SourcingPricing";
 import InventoryManagement from "./pages/InventoryManagement";
 import RefundsDisputes from "./pages/RefundsDisputes";
 import PaymentsBilling from "./pages/PaymentsBilling";
-import CommunicationCenter from "./pages/CommunicationCenter";
 import ComplianceDocs from "./pages/ComplianceDocs";
 import AnalyticsReports from "./pages/AnalyticsReports";
 import SettingsAPI from "./pages/SettingsAPI";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -47,7 +53,6 @@ const App = () => (
               <Route path="inventory" element={<InventoryManagement />} />
               <Route path="refunds" element={<RefundsDisputes />} />
               <Route path="payments" element={<PaymentsBilling />} />
-              <Route path="communication" element={<CommunicationCenter />} />
               <Route path="compliance" element={<ComplianceDocs />} />
               <Route path="analytics" element={<AnalyticsReports />} />
               <Route path="settings" element={<SettingsAPI />} />

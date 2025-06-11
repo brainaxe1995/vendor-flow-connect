@@ -2,36 +2,44 @@
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, Truck, CheckCircle, RefreshCw, AlertTriangle, DollarSign, TrendingUp, Bell } from 'lucide-react';
-import { useOrderStats, useProductStats, useNotifications, useWooCommerceConfig } from '../hooks/useWooCommerce';
+import { Button } from '@/components/ui/button';
+import { Package, Truck, CheckCircle, AlertTriangle, DollarSign, TrendingUp, Bell, Settings } from 'lucide-react';
+import { useOrderStats, useProductStats, useNotifications, useWooCommerceConfig, useTopSellers } from '../hooks/useWooCommerce';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { config } = useWooCommerceConfig();
-  const { data: orderStats, isLoading: orderStatsLoading } = useOrderStats();
-  const { data: productStats, isLoading: productStatsLoading } = useProductStats();
+  const { config, isConfigured } = useWooCommerceConfig();
+  const { data: orderStats, isLoading: orderStatsLoading, error: orderStatsError } = useOrderStats();
+  const { data: productStats, isLoading: productStatsLoading, error: productStatsError } = useProductStats();
   const { data: notifications } = useNotifications();
+  const { data: topSellers, isLoading: topSellersLoading } = useTopSellers();
 
   useEffect(() => {
-    if (!config) {
-      toast.error('WooCommerce not configured. Please go to Settings & API to configure your store connection.');
+    if (!isConfigured) {
+      toast.error('WooCommerce not configured. Please configure your API credentials in Settings.');
+    } else if (orderStatsError || productStatsError) {
+      toast.error('Failed to load store data. Please check your API configuration.');
     }
-  }, [config]);
+  }, [isConfigured, orderStatsError, productStatsError]);
 
   const recentNotifications = notifications.slice(0, 3);
 
-  if (!config) {
+  if (!isConfigured) {
     return (
       <div className="p-6 space-y-6">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto">
           <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">WooCommerce Not Configured</h2>
-          <p className="text-muted-foreground mb-4">
-            Please configure your WooCommerce API credentials in Settings & API to start using the portal.
+          <p className="text-muted-foreground mb-6">
+            Please configure your WooCommerce API credentials to start using the portal.
           </p>
-          <a href="/settings" className="text-primary hover:underline">
-            Go to Settings & API
-          </a>
+          <Link to="/settings">
+            <Button className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Configure WooCommerce API
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -143,52 +151,46 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Product Stats */}
+        {/* Top Selling Products */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Product Statistics
+              Top Selling Products
             </CardTitle>
             <CardDescription>
-              Current inventory status
+              Best performing products this period
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium">
-                    ✓
-                  </div>
-                  <span className="font-medium">In Stock</span>
+              {topSellersLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-sm text-muted-foreground mt-2">Loading top sellers...</p>
                 </div>
-                <Badge variant="secondary">
-                  {productStatsLoading ? '...' : productStats?.inStock || 0} products
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-xs font-medium">
-                    ✗
+              ) : topSellers && topSellers.length > 0 ? (
+                topSellers.slice(0, 5).map((product, index) => (
+                  <div key={product.product_id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{product.product_name}</p>
+                        <p className="text-xs text-muted-foreground">{product.quantity} sold</p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary">
+                      ${product.product_price}
+                    </Badge>
                   </div>
-                  <span className="font-medium">Out of Stock</span>
-                </div>
-                <Badge variant="secondary">
-                  {productStatsLoading ? '...' : productStats?.outOfStock || 0} products
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center text-xs font-medium">
-                    !
-                  </div>
-                  <span className="font-medium">Low Stock</span>
-                </div>
-                <Badge variant="secondary">
-                  {productStatsLoading ? '...' : productStats?.lowStock || 0} products
-                </Badge>
-              </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No sales data available
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -211,8 +213,9 @@ const Dashboard = () => {
               recentNotifications.map((notification) => (
                 <div key={notification.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
                   <div className={`w-2 h-2 rounded-full mt-2 ${
-                    notification.type === 'order' ? 'bg-primary' :
-                    notification.type === 'stock' ? 'bg-destructive' : 'bg-warning'
+                    notification.type === 'order' ? 'bg-blue-500' :
+                    notification.type === 'stock' ? 'bg-red-500' : 
+                    notification.type === 'delay' ? 'bg-yellow-500' : 'bg-gray-500'
                   }`} />
                   <div className="flex-1">
                     <p className="text-sm font-medium">{notification.title}</p>

@@ -6,24 +6,48 @@ import { WooCommerceConfig, OrderStats, ProductStats, Notification } from '../ty
 
 export const useWooCommerceConfig = () => {
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
+  const [isConfigured, setIsConfigured] = useState(false);
 
   useEffect(() => {
-    // Load config from localStorage or API
     const savedConfig = localStorage.getItem('woocommerce_config');
     if (savedConfig) {
-      const parsedConfig = JSON.parse(savedConfig);
-      setConfig(parsedConfig);
-      wooCommerceService.setConfig(parsedConfig);
+      try {
+        const parsedConfig = JSON.parse(savedConfig);
+        setConfig(parsedConfig);
+        wooCommerceService.setConfig(parsedConfig);
+        setIsConfigured(parsedConfig.status === 'active');
+      } catch (error) {
+        console.error('Failed to parse saved config:', error);
+        localStorage.removeItem('woocommerce_config');
+      }
     }
   }, []);
 
-  const saveConfig = (newConfig: WooCommerceConfig) => {
-    setConfig(newConfig);
-    wooCommerceService.setConfig(newConfig);
-    localStorage.setItem('woocommerce_config', JSON.stringify(newConfig));
+  const saveConfig = async (newConfig: WooCommerceConfig) => {
+    try {
+      // Test the connection before saving
+      wooCommerceService.setConfig(newConfig);
+      const isConnected = await wooCommerceService.testConnection();
+      
+      const updatedConfig = {
+        ...newConfig,
+        status: isConnected ? 'active' as const : 'inactive' as const,
+        lastUsed: new Date().toISOString(),
+        lastSync: isConnected ? new Date().toISOString() : ''
+      };
+      
+      setConfig(updatedConfig);
+      localStorage.setItem('woocommerce_config', JSON.stringify(updatedConfig));
+      setIsConfigured(isConnected);
+      
+      return isConnected;
+    } catch (error) {
+      console.error('Failed to save config:', error);
+      return false;
+    }
   };
 
-  return { config, saveConfig };
+  return { config, saveConfig, isConfigured };
 };
 
 export const useOrders = (params?: {
@@ -34,18 +58,24 @@ export const useOrders = (params?: {
   before?: string;
   search?: string;
 }) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
     queryKey: ['orders', params],
     queryFn: () => wooCommerceService.getOrders(params),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: isConfigured,
+    refetchInterval: 30000,
+    retry: 3,
   });
 };
 
 export const useOrder = (orderId: number) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
     queryKey: ['order', orderId],
     queryFn: () => wooCommerceService.getOrder(orderId),
-    enabled: !!orderId,
+    enabled: !!orderId && isConfigured,
   });
 };
 
@@ -58,6 +88,7 @@ export const useUpdateOrder = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['order'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 };
@@ -69,10 +100,14 @@ export const useProducts = (params?: {
   search?: string;
   stock_status?: string;
 }) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
     queryKey: ['products', params],
     queryFn: () => wooCommerceService.getProducts(params),
-    refetchInterval: 60000, // Refetch every minute
+    enabled: isConfigured,
+    refetchInterval: 60000,
+    retry: 3,
   });
 };
 
@@ -88,8 +123,8 @@ export const useUpdateProduct = () => {
   });
 };
 
-export const useOrderStats = (): { data: OrderStats | undefined; isLoading: boolean } => {
-  const { data: orders, isLoading } = useOrders({ per_page: 100 });
+export const useOrderStats = () => {
+  const { data: orders, isLoading, error } = useOrders({ per_page: 100 });
   
   const stats = orders ? {
     pending: orders.filter(o => o.status === 'pending').length,
@@ -99,15 +134,16 @@ export const useOrderStats = (): { data: OrderStats | undefined; isLoading: bool
     cancelled: orders.filter(o => o.status === 'cancelled').length,
     refunded: orders.filter(o => o.status === 'refunded').length,
     failed: orders.filter(o => o.status === 'failed').length,
+    pendingPayment: orders.filter(o => o.status === 'pending-payment').length,
     totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total), 0),
     refundRate: orders.length > 0 ? (orders.filter(o => o.status === 'refunded').length / orders.length) * 100 : 0,
   } : undefined;
 
-  return { data: stats, isLoading };
+  return { data: stats, isLoading, error };
 };
 
-export const useProductStats = (): { data: ProductStats | undefined; isLoading: boolean } => {
-  const { data: products, isLoading } = useProducts({ per_page: 100 });
+export const useProductStats = () => {
+  const { data: products, isLoading, error } = useProducts({ per_page: 100 });
   
   const stats = products ? {
     total: products.length,
@@ -117,10 +153,10 @@ export const useProductStats = (): { data: ProductStats | undefined; isLoading: 
     lowStock: products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
   } : undefined;
 
-  return { data: stats, isLoading };
+  return { data: stats, isLoading, error };
 };
 
-export const useNotifications = (): { data: Notification[]; isLoading: boolean } => {
+export const useNotifications = () => {
   const { data: orders } = useOrders({ per_page: 50 });
   const { data: products } = useProducts({ per_page: 50 });
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -131,18 +167,31 @@ export const useNotifications = (): { data: Notification[]; isLoading: boolean }
     const newNotifications: Notification[] = [];
     const now = new Date();
 
-    // New orders notifications
+    // New orders notifications (last 24 hours)
     orders.forEach(order => {
       const orderDate = new Date(order.date_created);
       const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
       
-      if (hoursSinceOrder < 24 && order.status === 'pending') {
+      if (hoursSinceOrder < 24 && ['pending', 'processing'].includes(order.status)) {
         newNotifications.push({
           id: `order-${order.id}`,
           type: 'order',
           title: 'New Order Received',
-          message: `Order #${order.id} from ${order.billing.first_name} ${order.billing.last_name}`,
+          message: `Order #${order.id} from ${order.billing.first_name} ${order.billing.last_name} - $${order.total}`,
           time: order.date_created,
+          read: false,
+          orderId: order.id,
+        });
+      }
+
+      // On-hold orders that need attention
+      if (order.status === 'on-hold') {
+        newNotifications.push({
+          id: `hold-${order.id}`,
+          type: 'delay',
+          title: 'Order On Hold',
+          message: `Order #${order.id} requires attention`,
+          time: order.date_modified,
           read: false,
           orderId: order.id,
         });
@@ -171,9 +220,46 @@ export const useNotifications = (): { data: Notification[]; isLoading: boolean }
 };
 
 export const useTrackingDetection = () => {
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
     queryKey: ['tracking-keys'],
     queryFn: () => wooCommerceService.detectTrackingMetaKey(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: isConfigured,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useTopSellers = () => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['top-sellers'],
+    queryFn: () => wooCommerceService.getTopSellersReport(),
+    enabled: isConfigured,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+
+export const useRefunds = (orderId?: number) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['refunds', orderId],
+    queryFn: () => orderId ? wooCommerceService.getRefunds(orderId) : Promise.resolve([]),
+    enabled: isConfigured && !!orderId,
+  });
+};
+
+export const useCreateRefund = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ orderId, data }: { orderId: number; data: any }) =>
+      wooCommerceService.createRefund(orderId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
   });
 };

@@ -1,331 +1,197 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, DollarSign, Download, Eye, Calendar, TrendingUp, AlertCircle, CheckCircle, Clock, Filter, Search } from 'lucide-react';
+import { DollarSign, FileText, Calendar, Download, CreditCard } from 'lucide-react';
 
 const PaymentsBilling = () => {
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  // Mock data for invoices and payments
+  const invoices = [
+    { id: 'INV-001', amount: 2450.00, status: 'paid', dueDate: '2024-01-15', paidDate: '2024-01-14' },
+    { id: 'INV-002', amount: 1850.00, status: 'outstanding', dueDate: '2024-02-15', paidDate: null },
+    { id: 'INV-003', amount: 3200.00, status: 'paid', dueDate: '2024-01-30', paidDate: '2024-01-28' }
+  ];
 
-  // Mock data for payments and billing
-  const invoices = {
-    pending: [
-      {
-        id: 'INV-001',
-        orderNumber: '12345',
-        customer: 'John Doe',
-        amount: 299.99,
-        tax: 24.00,
-        total: 323.99,
-        dueDate: '2024-01-20',
-        status: 'pending',
-        paymentMethod: 'Credit Card'
-      },
-      {
-        id: 'INV-002',
-        orderNumber: '12346',
-        customer: 'Jane Smith',
-        amount: 149.99,
-        tax: 12.00,
-        total: 161.99,
-        dueDate: '2024-01-22',
-        status: 'pending',
-        paymentMethod: 'PayPal'
-      }
-    ],
-    paid: [
-      {
-        id: 'INV-003',
-        orderNumber: '12340',
-        customer: 'Mike Johnson',
-        amount: 199.99,
-        tax: 16.00,
-        total: 215.99,
-        paidDate: '2024-01-15',
-        status: 'paid',
-        paymentMethod: 'Bank Transfer'
-      }
-    ],
-    overdue: [
-      {
-        id: 'INV-004',
-        orderNumber: '12330',
-        customer: 'Sarah Wilson',
-        amount: 399.99,
-        tax: 32.00,
-        total: 431.99,
-        dueDate: '2024-01-10',
-        status: 'overdue',
-        paymentMethod: 'Credit Card',
-        daysPastDue: 5
-      }
-    ],
-    disputed: [
-      {
-        id: 'INV-005',
-        orderNumber: '12320',
-        customer: 'David Brown',
-        amount: 249.99,
-        tax: 20.00,
-        total: 269.99,
-        disputeDate: '2024-01-12',
-        status: 'disputed',
-        paymentMethod: 'Credit Card',
-        disputeReason: 'Billing discrepancy'
-      }
-    ]
-  };
-
-  const paymentStats = {
-    totalRevenue: 15420.50,
-    pendingPayments: 485.98,
-    overdueAmount: 431.99,
-    averagePaymentTime: 3.2
-  };
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      paid: 'bg-green-100 text-green-800',
-      overdue: 'bg-red-100 text-red-800',
-      disputed: 'bg-orange-100 text-orange-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const InvoiceTable = ({ invoices, showPaidDate = false, showDaysOverdue = false, showDisputeInfo = false }) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Invoice ID</TableHead>
-          <TableHead>Order</TableHead>
-          <TableHead>Customer</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Tax</TableHead>
-          <TableHead>Total</TableHead>
-          {showPaidDate && <TableHead>Paid Date</TableHead>}
-          {showDaysOverdue && <TableHead>Days Overdue</TableHead>}
-          {showDisputeInfo && <TableHead>Dispute Reason</TableHead>}
-          <TableHead>Payment Method</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {invoices.map((invoice) => (
-          <TableRow key={invoice.id}>
-            <TableCell className="font-medium">{invoice.id}</TableCell>
-            <TableCell>#{invoice.orderNumber}</TableCell>
-            <TableCell>{invoice.customer}</TableCell>
-            <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-            <TableCell>${invoice.tax.toFixed(2)}</TableCell>
-            <TableCell className="font-medium">${invoice.total.toFixed(2)}</TableCell>
-            {showPaidDate && (
-              <TableCell>{invoice.paidDate || '-'}</TableCell>
-            )}
-            {showDaysOverdue && (
-              <TableCell>
-                {invoice.daysPastDue ? (
-                  <Badge variant="destructive">{invoice.daysPastDue} days</Badge>
-                ) : '-'}
-              </TableCell>
-            )}
-            {showDisputeInfo && (
-              <TableCell>{invoice.disputeReason || '-'}</TableCell>
-            )}
-            <TableCell>{invoice.paymentMethod}</TableCell>
-            <TableCell>
-              <Badge className={getStatusColor(invoice.status)}>
-                {invoice.status}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4" />
-                </Button>
-                {invoice.status === 'pending' && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm">Send Reminder</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Send Payment Reminder</DialogTitle>
-                        <DialogDescription>
-                          Send a payment reminder to the customer
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div>
-                          <Label htmlFor="reminderType">Reminder Type</Label>
-                          <select id="reminderType" className="w-full p-2 border rounded-md">
-                            <option>Friendly Reminder</option>
-                            <option>First Notice</option>
-                            <option>Final Notice</option>
-                          </select>
-                        </div>
-                        <div>
-                          <Label htmlFor="customMessage">Custom Message</Label>
-                          <Textarea id="customMessage" placeholder="Add a personal message..." />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button variant="outline">Cancel</Button>
-                          <Button>Send Reminder</Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+  const paymentTerms = [
+    { term: 'Net-30', description: '30 days from invoice date', active: true },
+    { term: 'Net-15', description: '15 days from invoice date', active: false },
+    { term: 'Immediate', description: 'Payment due immediately', active: false }
+  ];
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Payments & Billing</h1>
-        <div className="flex gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search invoices..." className="pl-10 w-64" />
-          </div>
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline">
-            <Calendar className="w-4 h-4 mr-2" />
-            Date Range
-          </Button>
-        </div>
+        <Button>
+          <Download className="w-4 h-4 mr-2" />
+          Export Statement
+        </Button>
       </div>
 
       {/* Payment Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${paymentStats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold text-red-600">$1,850.00</div>
+            <p className="text-xs text-muted-foreground">Due within 30 days</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${paymentStats.pendingPayments.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">{invoices.pending.length} invoices</p>
+            <div className="text-2xl font-bold text-green-600">$5,650.00</div>
+            <p className="text-xs text-muted-foreground">From 3 invoices</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Amount</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Next Payment Due</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${paymentStats.overdueAmount.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">{invoices.overdue.length} overdue</p>
+            <div className="text-2xl font-bold">Feb 15</div>
+            <p className="text-xs text-muted-foreground">$1,850.00 due</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Payment Time</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Payment Terms</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{paymentStats.averagePaymentTime} days</div>
-            <p className="text-xs text-muted-foreground">Average collection</p>
+            <div className="text-2xl font-bold">Net-30</div>
+            <p className="text-xs text-muted-foreground">Current terms</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            Pending <Badge variant="secondary">{invoices.pending.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="paid" className="flex items-center gap-2">
-            Paid <Badge variant="secondary">{invoices.paid.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex items-center gap-2">
-            Overdue <Badge variant="destructive">{invoices.overdue.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="disputed" className="flex items-center gap-2">
-            Disputed <Badge variant="secondary">{invoices.disputed.length}</Badge>
-          </TabsTrigger>
-        </TabsList>
+      {/* Invoices Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Invoices</CardTitle>
+          <CardDescription>Your recent billing history and payment status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice ID</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Paid Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-medium">{invoice.id}</TableCell>
+                  <TableCell>${invoice.amount.toLocaleString()}</TableCell>
+                  <TableCell>{invoice.dueDate}</TableCell>
+                  <TableCell>{invoice.paidDate || '-'}</TableCell>
+                  <TableCell>
+                    <Badge 
+                      className={
+                        invoice.status === 'paid' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }
+                    >
+                      {invoice.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <Download className="w-3 h-3 mr-1" />
+                        PDF
+                      </Button>
+                      {invoice.status === 'outstanding' && (
+                        <Button size="sm">
+                          Pay Now
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="pending">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Invoices</CardTitle>
-              <CardDescription>Invoices awaiting payment</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvoiceTable invoices={invoices.pending} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Payment Terms */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Terms</CardTitle>
+          <CardDescription>Configure your preferred payment terms</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {paymentTerms.map((term) => (
+              <div 
+                key={term.term} 
+                className={`p-4 border rounded-lg ${
+                  term.active ? 'border-primary bg-primary/5' : 'border-muted'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">{term.term}</h4>
+                  {term.active && (
+                    <Badge variant="default">Active</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">{term.description}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="paid">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paid Invoices</CardTitle>
-              <CardDescription>Successfully completed payments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvoiceTable invoices={invoices.paid} showPaidDate={true} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="overdue">
-          <Card>
-            <CardHeader>
-              <CardTitle>Overdue Invoices</CardTitle>
-              <CardDescription>Invoices past their due date</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvoiceTable invoices={invoices.overdue} showDaysOverdue={true} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="disputed">
-          <Card>
-            <CardHeader>
-              <CardTitle>Disputed Invoices</CardTitle>
-              <CardDescription>Invoices under dispute</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvoiceTable invoices={invoices.disputed} showDisputeInfo={true} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Payment Methods */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Methods</CardTitle>
+          <CardDescription>Manage your payment methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-8 h-8 text-blue-600" />
+                <div>
+                  <p className="font-medium">Bank Transfer (ACH)</p>
+                  <p className="text-sm text-muted-foreground">Primary payment method</p>
+                </div>
+              </div>
+              <Badge variant="default">Primary</Badge>
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-8 h-8 text-gray-600" />
+                <div>
+                  <p className="font-medium">Credit Card (**** 1234)</p>
+                  <p className="text-sm text-muted-foreground">Backup payment method</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm">Edit</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
