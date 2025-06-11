@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -12,6 +13,53 @@ import {
 } from '../services/woocommerce';
 import { WooCommerceConfig, OrderStats, ProductStats, Notification } from '../types/woocommerce';
 
+// Valid WooCommerce order statuses
+const VALID_ORDER_STATUSES = [
+  'any', 'pending', 'processing', 'on-hold',
+  'completed', 'cancelled', 'refunded', 'failed'
+];
+
+// Helper to validate and normalize order status
+const validateOrderStatus = (status?: string): string | undefined => {
+  if (!status) return undefined;
+  
+  // Handle invalid statuses by mapping to valid ones
+  const statusMap: Record<string, string> = {
+    'pending-payment': 'pending',
+    'in-transit': 'processing', // Will use meta query for actual in-transit detection
+    'delivered': 'completed',
+    'returned': 'refunded'
+  };
+  
+  const normalizedStatus = statusMap[status] || status;
+  return VALID_ORDER_STATUSES.includes(normalizedStatus) ? normalizedStatus : undefined;
+};
+
+// Helper to ensure per_page is within valid limits
+const validatePerPage = (perPage?: number): number => {
+  if (!perPage) return 20;
+  return Math.min(Math.max(perPage, 1), 100);
+};
+
+// Helper for deep equality check to prevent redundant config updates
+const deepEqual = (obj1: any, obj2: any): boolean => {
+  if (obj1 === obj2) return true;
+  if (!obj1 || !obj2) return false;
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false;
+  
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  
+  if (keys1.length !== keys2.length) return false;
+  
+  for (let key of keys1) {
+    if (!keys2.includes(key)) return false;
+    if (!deepEqual(obj1[key], obj2[key])) return false;
+  }
+  
+  return true;
+};
+
 export const useWooCommerceConfig = () => {
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -22,9 +70,13 @@ export const useWooCommerceConfig = () => {
       try {
         const parsedConfig = JSON.parse(savedConfig);
         if (parsedConfig.storeUrl && parsedConfig.consumerKey && parsedConfig.consumerSecret) {
-          setConfig(parsedConfig);
-          wooCommerceService.setConfig(parsedConfig);
-          setIsConfigured(parsedConfig.status === 'active');
+          // Only update if config actually changed
+          if (!deepEqual(config, parsedConfig)) {
+            setConfig(parsedConfig);
+            wooCommerceService.setConfig(parsedConfig);
+            setIsConfigured(parsedConfig.status === 'active');
+            console.log('WooCommerce config loaded from storage');
+          }
         } else {
           console.warn('Invalid WooCommerce config found, clearing...');
           localStorage.removeItem('woocommerce_config');
@@ -34,12 +86,18 @@ export const useWooCommerceConfig = () => {
         localStorage.removeItem('woocommerce_config');
       }
     }
-  }, []);
+  }, []); // Empty dependency array to prevent loops
 
   const saveConfig = async (newConfig: WooCommerceConfig) => {
     try {
       if (!newConfig.storeUrl?.trim() || !newConfig.consumerKey?.trim() || !newConfig.consumerSecret?.trim()) {
         throw new Error('Missing required configuration fields');
+      }
+
+      // Only proceed if config actually changed
+      if (deepEqual(config, newConfig)) {
+        console.log('Config unchanged, skipping update');
+        return isConfigured;
       }
 
       wooCommerceService.setConfig(newConfig);
@@ -55,6 +113,7 @@ export const useWooCommerceConfig = () => {
       setConfig(updatedConfig);
       localStorage.setItem('woocommerce_config', JSON.stringify(updatedConfig));
       setIsConfigured(isConnected);
+      console.log('WooCommerce config updated successfully');
       
       return isConnected;
     } catch (error) {
@@ -82,8 +141,16 @@ export const useOrders = (params?: {
     queryKey: ['orders', params],
     queryFn: async (): Promise<WooCommerceResponse<WooCommerceOrder[]>> => {
       try {
-        console.log('Fetching orders with params:', params);
-        const response = await wooCommerceService.getOrders(params);
+        // Validate and normalize parameters
+        const validatedParams = {
+          ...params,
+          status: validateOrderStatus(params?.status),
+          per_page: validatePerPage(params?.per_page),
+          page: Math.max(params?.page || 1, 1)
+        };
+
+        console.log('Fetching orders with validated params:', validatedParams);
+        const response = await wooCommerceService.getOrders(validatedParams);
         console.log('Orders response:', response);
         return response;
       } catch (error) {
@@ -101,6 +168,9 @@ export const useOrders = (params?: {
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) {
         return false;
+      }
+      if (error?.status === 429) {
+        return failureCount < 3; // Retry on rate limit
       }
       return failureCount < 2;
     },
@@ -164,7 +234,14 @@ export const useProducts = (params?: {
     queryKey: ['products', params],
     queryFn: async () => {
       try {
-        const response = await wooCommerceService.getProducts(params);
+        // Validate per_page parameter
+        const validatedParams = {
+          ...params,
+          per_page: validatePerPage(params?.per_page),
+          page: Math.max(params?.page || 1, 1)
+        };
+        
+        const response = await wooCommerceService.getProducts(validatedParams);
         return response;
       } catch (error) {
         console.error('Failed to fetch products:', error);
@@ -212,8 +289,15 @@ export const useCategories = (params?: {
     queryKey: ['categories', params],
     queryFn: async (): Promise<WooCommerceResponse<WooCommerceCategory[]>> => {
       try {
-        console.log('Fetching categories with params:', params);
-        const response = await wooCommerceService.getCategories(params);
+        // Validate per_page parameter
+        const validatedParams = {
+          ...params,
+          per_page: validatePerPage(params?.per_page),
+          page: Math.max(params?.page || 1, 1)
+        };
+        
+        console.log('Fetching categories with validated params:', validatedParams);
+        const response = await wooCommerceService.getCategories(validatedParams);
         console.log('Categories response:', response);
         return response;
       } catch (error) {
@@ -251,8 +335,15 @@ export const useCustomers = (params?: {
     queryKey: ['customers', params],
     queryFn: async (): Promise<WooCommerceResponse<WooCommerceCustomer[]>> => {
       try {
-        console.log('Fetching customers with params:', params);
-        const response = await wooCommerceService.getCustomers(params);
+        // Validate per_page parameter
+        const validatedParams = {
+          ...params,
+          per_page: validatePerPage(params?.per_page),
+          page: Math.max(params?.page || 1, 1)
+        };
+        
+        console.log('Fetching customers with validated params:', validatedParams);
+        const response = await wooCommerceService.getCustomers(validatedParams);
         console.log('Customers response:', response);
         return response;
       } catch (error) {
@@ -297,7 +388,10 @@ export const useTopSellers = (params?: {
   
   return useQuery({
     queryKey: ['top-sellers', params],
-    queryFn: () => wooCommerceService.getTopSellersReport(params),
+    queryFn: () => wooCommerceService.getTopSellersReport({
+      ...params,
+      per_page: validatePerPage(params?.per_page)
+    }),
     enabled: isConfigured,
     staleTime: 10 * 60 * 1000,
   });
@@ -329,37 +423,49 @@ export const useExportData = () => {
 
 export const useOrderStats = (dateRange?: { date_min?: string; date_max?: string }) => {
   const { data: response, isLoading, error } = useOrders({ 
-    per_page: 1000,
+    per_page: 100, // Fixed: Use valid per_page limit
     after: dateRange?.date_min,
     before: dateRange?.date_max 
   });
   
-  const stats = response?.data ? {
-    pending: response.data.filter(o => o.status === 'pending').length,
-    processing: response.data.filter(o => o.status === 'processing').length,
-    onHold: response.data.filter(o => o.status === 'on-hold').length,
-    completed: response.data.filter(o => o.status === 'completed').length,
-    cancelled: response.data.filter(o => o.status === 'cancelled').length,
-    refunded: response.data.filter(o => o.status === 'refunded').length,
-    failed: response.data.filter(o => o.status === 'failed').length,
-    pendingPayment: response.data.filter(o => o.status === 'pending-payment').length,
-    totalRevenue: response.data.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
-    refundRate: response.data.length > 0 ? (response.data.filter(o => o.status === 'refunded').length / response.data.length) * 100 : 0,
-  } : undefined;
+  // Fixed: Initialize stats properly and add guards
+  let stats: OrderStats | undefined;
+  
+  if (response?.data && Array.isArray(response.data)) {
+    const orders = response.data;
+    stats = {
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      onHold: orders.filter(o => o.status === 'on-hold').length,
+      completed: orders.filter(o => o.status === 'completed').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      refunded: orders.filter(o => o.status === 'refunded').length,
+      failed: orders.filter(o => o.status === 'failed').length,
+      pendingPayment: orders.filter(o => o.status === 'pending').length, // Map pending-payment to pending
+      totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
+      refundRate: orders.length > 0 ? (orders.filter(o => o.status === 'refunded').length / orders.length) * 100 : 0,
+    };
+  }
 
   return { data: stats, isLoading, error };
 };
 
 export const useProductStats = () => {
-  const { data: response, isLoading, error } = useProducts({ per_page: 1000 });
+  const { data: response, isLoading, error } = useProducts({ per_page: 100 }); // Fixed: Use valid per_page limit
   
-  const stats = response?.data ? {
-    total: response.data.length,
-    inStock: response.data.filter(p => p.stock_status === 'instock').length,
-    outOfStock: response.data.filter(p => p.stock_status === 'outofstock').length,
-    onBackorder: response.data.filter(p => p.stock_status === 'onbackorder').length,
-    lowStock: response.data.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
-  } : undefined;
+  // Fixed: Initialize stats properly and add guards
+  let stats: ProductStats | undefined;
+  
+  if (response?.data && Array.isArray(response.data)) {
+    const products = response.data;
+    stats = {
+      total: products.length,
+      inStock: products.filter(p => p.stock_status === 'instock').length,
+      outOfStock: products.filter(p => p.stock_status === 'outofstock').length,
+      onBackorder: products.filter(p => p.stock_status === 'onbackorder').length,
+      lowStock: products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
+    };
+  }
 
   return { data: stats, isLoading, error };
 };
@@ -367,18 +473,23 @@ export const useProductStats = () => {
 // Customer acquisition with date filtering
 export const useCustomerAcquisition = (dateRange?: { date_min?: string; date_max?: string }) => {
   const { data: response, isLoading, error } = useCustomers({
-    per_page: 1000,
+    per_page: 100, // Fixed: Use valid per_page limit
     after: dateRange?.date_min,
     before: dateRange?.date_max,
     orderby: 'registered_date',
     order: 'desc'
   });
 
-  const acquisitionData = response?.data ? response.data.reduce((acc, customer) => {
-    const date = new Date(customer.date_created).toISOString().split('T')[0];
-    acc[date] = (acc[date] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>) : {};
+  // Fixed: Add proper guards and initialization
+  let acquisitionData: Record<string, number> = {};
+  
+  if (response?.data && Array.isArray(response.data)) {
+    acquisitionData = response.data.reduce((acc, customer) => {
+      const date = new Date(customer.date_created).toISOString().split('T')[0];
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }
 
   const chartData = Object.entries(acquisitionData).map(([date, count]) => ({
     date,
@@ -392,32 +503,38 @@ export const useCustomerAcquisition = (dateRange?: { date_min?: string; date_max
 export const useCategorySales = (dateRange?: { date_min?: string; date_max?: string }) => {
   const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
   const { data: ordersResponse, isLoading: ordersLoading } = useOrders({
-    per_page: 1000,
+    per_page: 100, // Fixed: Use valid per_page limit
     after: dateRange?.date_min,
     before: dateRange?.date_max
   });
 
+  // Fixed: Add proper guards and initialization
   const categories = categoriesResponse?.data || [];
   const orders = ordersResponse?.data || [];
   const isLoading = categoriesLoading || ordersLoading;
 
-  const categorySales = categories.map(category => {
-    const categoryOrders = orders.filter(order => 
-      order.line_items.some(item => 
-        item.product_id && categories.find(cat => cat.id === category.id)
-      )
-    );
-    
-    const totalSales = categoryOrders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0);
-    const orderCount = categoryOrders.length;
+  let categorySales: any[] = [];
+  
+  if (Array.isArray(categories) && Array.isArray(orders)) {
+    categorySales = categories.map(category => {
+      const categoryOrders = orders.filter(order => 
+        order.line_items && Array.isArray(order.line_items) && 
+        order.line_items.some(item => 
+          item.product_id && categories.find(cat => cat.id === category.id)
+        )
+      );
+      
+      const totalSales = categoryOrders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0);
+      const orderCount = categoryOrders.length;
 
-    return {
-      name: category.name,
-      value: orderCount,
-      sales: totalSales,
-      label: `${category.name} (${orderCount} orders)`
-    };
-  }).filter(item => item.value > 0);
+      return {
+        name: category.name,
+        value: orderCount,
+        sales: totalSales,
+        label: `${category.name} (${orderCount} orders)`
+      };
+    }).filter(item => item.value > 0);
+  }
 
   return { data: categorySales, isLoading };
 };
@@ -428,10 +545,11 @@ export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
+    // Fixed: Add proper guards before accessing data
     const orders = ordersResponse?.data;
     const products = productsResponse?.data;
     
-    if (!orders || !products) return;
+    if (!orders || !Array.isArray(orders) || !products || !Array.isArray(products)) return;
 
     const newNotifications: Notification[] = [];
     const now = new Date();
@@ -518,5 +636,38 @@ export const useCreateRefund = () => {
       queryClient.invalidateQueries({ queryKey: ['refunds'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
+  });
+};
+
+// Hook for detecting in-transit orders using meta queries
+export const useInTransitOrders = (dateRange?: { date_min?: string; date_max?: string }) => {
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['in-transit-orders', dateRange],
+    queryFn: async (): Promise<WooCommerceResponse<WooCommerceOrder[]>> => {
+      try {
+        // Use meta query to detect in-transit orders (orders with tracking but not completed)
+        const response = await wooCommerceService.getOrders({
+          status: 'processing',
+          meta_key: '_tracking_number',
+          meta_compare: 'EXISTS',
+          per_page: 100,
+          after: dateRange?.date_min,
+          before: dateRange?.date_max
+        });
+        return response;
+      } catch (error) {
+        console.error('Failed to fetch in-transit orders:', error);
+        return {
+          data: [],
+          totalPages: 0,
+          totalRecords: 0,
+          hasMore: false
+        };
+      }
+    },
+    enabled: isConfigured,
+    staleTime: 5 * 60 * 1000,
   });
 };

@@ -59,7 +59,8 @@ const OrderTable: React.FC<OrderTableProps> = ({
     );
   }
 
-  if (!orders || orders.length === 0) {
+  // Fixed: Add proper validation for orders array
+  if (!orders || !Array.isArray(orders) || orders.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p>No orders found</p>
@@ -87,19 +88,34 @@ const OrderTable: React.FC<OrderTableProps> = ({
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
+            // Fixed: Add validation for order object and its properties
+            if (!order || !order.id) {
+              console.warn('Invalid order object:', order);
+              return null;
+            }
+
             const tracking = getTrackingNumber(order);
+            const billing = order.billing || {};
+            const lineItems = order.line_items || [];
+            
             return (
               <TableRow key={order.id}>
                 <TableCell className="font-medium">#{order.id}</TableCell>
                 <TableCell>
                   <div>
-                    <p className="font-medium">{order.billing.first_name} {order.billing.last_name}</p>
-                    <p className="text-sm text-muted-foreground">{order.billing.email}</p>
+                    <p className="font-medium">
+                      {billing.first_name || ''} {billing.last_name || ''}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {billing.email || 'No email'}
+                    </p>
                   </div>
                 </TableCell>
-                <TableCell>{order.line_items?.length || 0}</TableCell>
-                <TableCell>${order.total}</TableCell>
-                <TableCell>{new Date(order.date_created).toLocaleDateString()}</TableCell>
+                <TableCell>{Array.isArray(lineItems) ? lineItems.length : 0}</TableCell>
+                <TableCell>${order.total || '0.00'}</TableCell>
+                <TableCell>
+                  {order.date_created ? new Date(order.date_created).toLocaleDateString() : 'N/A'}
+                </TableCell>
                 {showTracking && (
                   <TableCell>
                     {tracking ? (
@@ -110,8 +126,8 @@ const OrderTable: React.FC<OrderTableProps> = ({
                   </TableCell>
                 )}
                 <TableCell>
-                  <Badge className={getStatusColor(order.status)}>
-                    {order.status.replace('-', ' ')}
+                  <Badge className={getStatusColor(order.status || 'unknown')}>
+                    {(order.status || 'unknown').replace('-', ' ')}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -131,7 +147,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
                 </TableCell>
               </TableRow>
             );
-          })}
+          }).filter(Boolean)} {/* Filter out null entries */}
         </TableBody>
       </Table>
 

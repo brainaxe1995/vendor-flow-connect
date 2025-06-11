@@ -214,13 +214,22 @@ class WooCommerceService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error Response:', errorText);
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          url,
+          errorText
+        });
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       return response;
     } catch (error) {
-      console.error('WooCommerce API request failed:', error);
+      console.error('WooCommerce API request failed:', {
+        url,
+        error: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }
@@ -231,7 +240,7 @@ class WooCommerceService {
     return { totalPages, totalRecords };
   }
 
-  // Orders API with proper pagination
+  // Orders API with proper pagination and validation
   async getOrders(params: {
     status?: string;
     per_page?: number;
@@ -244,9 +253,10 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceOrder[]>> {
     const queryParams = new URLSearchParams();
     
-    // Increase default per_page to 100 for better performance
-    queryParams.append('per_page', (params.per_page || 100).toString());
-    queryParams.append('page', (params.page || 1).toString());
+    // Fixed: Ensure per_page is within valid limits (1-100)
+    const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
+    queryParams.append('per_page', perPage.toString());
+    queryParams.append('page', Math.max(params.page || 1, 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page' && key !== 'page') {
@@ -255,7 +265,10 @@ class WooCommerceService {
     });
     
     const endpoint = `/orders?${queryParams.toString()}`;
-    console.log('Fetching orders with params:', params);
+    console.log('Fetching orders with validated params:', {
+      ...params,
+      per_page: perPage
+    });
     
     const response = await this.makeRequest(endpoint);
     const data = await response.json();
@@ -299,7 +312,7 @@ class WooCommerceService {
     return this.updateOrder(orderId, updateData);
   }
 
-  // Products API with proper pagination
+  // Products API with proper pagination and validation
   async getProducts(params: {
     status?: string;
     per_page?: number;
@@ -309,8 +322,10 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceProduct[]>> {
     const queryParams = new URLSearchParams();
     
-    queryParams.append('per_page', (params.per_page || 100).toString());
-    queryParams.append('page', (params.page || 1).toString());
+    // Fixed: Ensure per_page is within valid limits (1-100)
+    const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
+    queryParams.append('per_page', perPage.toString());
+    queryParams.append('page', Math.max(params.page || 1, 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page' && key !== 'page') {
@@ -319,7 +334,10 @@ class WooCommerceService {
     });
     
     const endpoint = `/products?${queryParams.toString()}`;
-    console.log('Fetching products with params:', params);
+    console.log('Fetching products with validated params:', {
+      ...params,
+      per_page: perPage
+    });
     
     const response = await this.makeRequest(endpoint);
     const data = await response.json();
@@ -347,7 +365,7 @@ class WooCommerceService {
     return response.json();
   }
 
-  // Categories API
+  // Categories API with validation
   async getCategories(params: {
     per_page?: number;
     page?: number;
@@ -361,8 +379,10 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceCategory[]>> {
     const queryParams = new URLSearchParams();
     
-    queryParams.append('per_page', (params.per_page || 100).toString());
-    queryParams.append('page', (params.page || 1).toString());
+    // Fixed: Ensure per_page is within valid limits (1-100)
+    const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
+    queryParams.append('per_page', perPage.toString());
+    queryParams.append('page', Math.max(params.page || 1, 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && key !== 'per_page' && key !== 'page') {
@@ -375,7 +395,10 @@ class WooCommerceService {
     });
     
     const endpoint = `/products/categories?${queryParams.toString()}`;
-    console.log('Fetching categories with params:', params);
+    console.log('Fetching categories with validated params:', {
+      ...params,
+      per_page: perPage
+    });
     
     const response = await this.makeRequest(endpoint);
     const data = await response.json();
@@ -389,7 +412,7 @@ class WooCommerceService {
     };
   }
 
-  // Customers API
+  // Customers API with validation
   async getCustomers(params: {
     per_page?: number;
     page?: number;
@@ -405,8 +428,10 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceResponse<WooCommerceCustomer[]>> {
     const queryParams = new URLSearchParams();
     
-    queryParams.append('per_page', (params.per_page || 100).toString());
-    queryParams.append('page', (params.page || 1).toString());
+    // Fixed: Ensure per_page is within valid limits (1-100)
+    const perPage = Math.min(Math.max(params.per_page || 20, 1), 100);
+    queryParams.append('per_page', perPage.toString());
+    queryParams.append('page', Math.max(params.page || 1, 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && key !== 'per_page' && key !== 'page') {
@@ -419,7 +444,10 @@ class WooCommerceService {
     });
     
     const endpoint = `/customers?${queryParams.toString()}`;
-    console.log('Fetching customers with params:', params);
+    console.log('Fetching customers with validated params:', {
+      ...params,
+      per_page: perPage
+    });
     
     const response = await this.makeRequest(endpoint);
     const data = await response.json();
@@ -458,7 +486,10 @@ class WooCommerceService {
     per_page?: number;
   } = {}): Promise<TopSellerReport[]> {
     const queryParams = new URLSearchParams();
-    queryParams.append('per_page', (params.per_page || 10).toString());
+    
+    // Fixed: Ensure per_page is within valid limits
+    const perPage = Math.min(Math.max(params.per_page || 10, 1), 100);
+    queryParams.append('per_page', perPage.toString());
     
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page') {
@@ -467,7 +498,10 @@ class WooCommerceService {
     });
     
     const endpoint = `/reports/top_sellers?${queryParams.toString()}`;
-    console.log('Fetching top sellers report');
+    console.log('Fetching top sellers report with validated params:', {
+      ...params,
+      per_page: perPage
+    });
     const response = await this.makeRequest(endpoint);
     return response.json();
   }
@@ -509,22 +543,26 @@ class WooCommerceService {
   async detectTrackingMetaKey(): Promise<string[]> {
     try {
       console.log('Detecting tracking meta keys...');
-      const response = await this.getOrders({ per_page: 20 });
+      const response = await this.getOrders({ per_page: 20 }); // Fixed: Use valid per_page
       const trackingKeys = new Set<string>();
       
-      response.data.forEach(order => {
-        order.meta_data.forEach(meta => {
-          const keyLower = meta.key.toLowerCase();
-          if (keyLower.includes('tracking') || 
-              keyLower.includes('track') || 
-              keyLower.includes('shipment') ||
-              keyLower.includes('tracking_number') ||
-              keyLower.includes('shipstation') ||
-              keyLower.includes('aftership')) {
-            trackingKeys.add(meta.key);
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach(order => {
+          if (order.meta_data && Array.isArray(order.meta_data)) {
+            order.meta_data.forEach(meta => {
+              const keyLower = meta.key.toLowerCase();
+              if (keyLower.includes('tracking') || 
+                  keyLower.includes('track') || 
+                  keyLower.includes('shipment') ||
+                  keyLower.includes('tracking_number') ||
+                  keyLower.includes('shipstation') ||
+                  keyLower.includes('aftership')) {
+                trackingKeys.add(meta.key);
+              }
+            });
           }
         });
-      });
+      }
       
       const keys = Array.from(trackingKeys);
       console.log('Detected tracking keys:', keys);
@@ -553,7 +591,7 @@ class WooCommerceService {
           after: params.date_min,
           before: params.date_max,
           status: params.status,
-          per_page: 1000
+          per_page: 100 // Fixed: Use valid per_page
         });
         data = orders.data.map(order => ({
           'Order ID': order.id,
@@ -565,7 +603,7 @@ class WooCommerceService {
         }));
         break;
       case 'products':
-        const products = await this.getProducts({ per_page: 1000 });
+        const products = await this.getProducts({ per_page: 100 }); // Fixed: Use valid per_page
         data = products.data.map(product => ({
           'Product ID': product.id,
           'Name': product.name,
@@ -579,7 +617,7 @@ class WooCommerceService {
         const customers = await this.getCustomers({
           after: params.date_min,
           before: params.date_max,
-          per_page: 1000
+          per_page: 100 // Fixed: Use valid per_page
         });
         data = customers.data.map(customer => ({
           'Customer ID': customer.id,
@@ -607,3 +645,5 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
+
+}
