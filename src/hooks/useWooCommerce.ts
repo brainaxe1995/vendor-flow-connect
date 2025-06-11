@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -441,7 +440,6 @@ export const useOrderStats = (dateRange?: { date_min?: string; date_max?: string
       cancelled: orders.filter(o => o.status === 'cancelled').length,
       refunded: orders.filter(o => o.status === 'refunded').length,
       failed: orders.filter(o => o.status === 'failed').length,
-      pendingPayment: orders.filter(o => o.status === 'pending').length, // Map pending-payment to pending
       totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
       refundRate: orders.length > 0 ? (orders.filter(o => o.status === 'refunded').length / orders.length) * 100 : 0,
     };
@@ -671,3 +669,5 @@ export const useInTransitOrders = (dateRange?: { date_min?: string; date_max?: s
     staleTime: 5 * 60 * 1000,
   });
 };
+
+}
