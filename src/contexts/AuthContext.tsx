@@ -25,13 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for existing session
     const savedUser = localStorage.getItem('user_session');
     if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Failed to parse saved user session:', error);
-        localStorage.removeItem('user_session');
-      }
+      setUser(JSON.parse(savedUser));
     }
     setIsLoading(false);
   }, []);
@@ -40,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Mock authentication - replace with real API call
     if (email && password) {
       const mockUser: User = {
-        id: Date.now().toString(),
+        id: '1',
         email,
         role,
         name: role === 'admin' ? 'Admin User' : 'Supplier User',
@@ -48,19 +42,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUser(mockUser);
       localStorage.setItem('user_session', JSON.stringify(mockUser));
-      console.log('User logged in:', mockUser);
       return true;
     }
     return false;
   };
 
   const logout = () => {
-    console.log('User logged out');
     setUser(null);
     localStorage.removeItem('user_session');
     localStorage.removeItem('woocommerce_config');
-    // Force redirect to login
-    window.location.href = '/login';
   };
 
   return (

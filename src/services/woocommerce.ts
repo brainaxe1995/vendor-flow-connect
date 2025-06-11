@@ -1,3 +1,4 @@
+
 import { WooCommerceConfig } from '../types/woocommerce';
 
 export interface WooCommerceOrder {
@@ -81,42 +82,13 @@ export interface TopSellerReport {
 class WooCommerceService {
   private config: WooCommerceConfig | null = null;
 
-  constructor() {
-    // Load configuration from localStorage on initialization
-    this.loadConfigFromStorage();
-  }
-
-  private loadConfigFromStorage() {
-    try {
-      const savedConfig = localStorage.getItem('woocommerce_config');
-      if (savedConfig) {
-        const parsedConfig = JSON.parse(savedConfig);
-        this.setConfig(parsedConfig);
-        console.log('WooCommerce config loaded from storage:', {
-          storeUrl: parsedConfig.storeUrl,
-          hasKey: !!parsedConfig.consumerKey,
-          hasSecret: !!parsedConfig.consumerSecret,
-          status: parsedConfig.status
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load WooCommerce config from storage:', error);
-      localStorage.removeItem('woocommerce_config');
-    }
-  }
-
   setConfig(config: WooCommerceConfig) {
     this.config = config;
     console.log('WooCommerce config updated:', { 
       storeUrl: config.storeUrl, 
       hasKey: !!config.consumerKey,
-      hasSecret: !!config.consumerSecret,
-      status: config.status
+      hasSecret: !!config.consumerSecret 
     });
-  }
-
-  getConfig(): WooCommerceConfig | null {
-    return this.config;
   }
 
   private getAuthString(): string {
@@ -130,11 +102,6 @@ class WooCommerceService {
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    // Ensure we have the latest config from storage
-    if (!this.config) {
-      this.loadConfigFromStorage();
-    }
-
     if (!this.config) {
       throw new Error('WooCommerce configuration not set. Please configure API credentials in Settings.');
     }
@@ -159,25 +126,18 @@ class WooCommerceService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error Response:', {
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          errorText
-        });
+        console.error('API Error Response:', errorText);
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      const data = await response.json();
-      console.log('API Response successful:', { endpoint, dataLength: Array.isArray(data) ? data.length : 'object' });
-      return data;
+      return response.json();
     } catch (error) {
-      console.error('WooCommerce API request failed:', { url, error });
+      console.error('WooCommerce API request failed:', error);
       throw error;
     }
   }
 
-  // Orders API with pagination support
+  // Orders API
   async getOrders(params: {
     status?: string;
     per_page?: number;
@@ -188,8 +148,8 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceOrder[]> {
     const queryParams = new URLSearchParams();
     
-    // Default pagination
-    queryParams.append('per_page', (params.per_page || 20).toString());
+    // Default to reasonable limits
+    queryParams.append('per_page', (params.per_page || 50).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -215,60 +175,23 @@ class WooCommerceService {
     });
   }
 
-  // Enhanced tracking update with proper metadata handling
   async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey?: string): Promise<WooCommerceOrder> {
-    let detectedKey = trackingKey;
+    const key = trackingKey || '_tracking_number';
+    const updateData = {
+      meta_data: [
+        {
+          id: 0, // WooCommerce will assign the actual ID
+          key,
+          value: trackingNumber,
+        }
+      ],
+    };
     
-    // If no key provided, try to detect from existing order data
-    if (!detectedKey) {
-      try {
-        const order = await this.getOrder(orderId);
-        const trackingMeta = order.meta_data.find(meta => {
-          const key = meta.key.toLowerCase();
-          return key.includes('tracking') || key.includes('track') || key.includes('shipment');
-        });
-        detectedKey = trackingMeta?.key || '_tracking_number';
-      } catch (error) {
-        console.warn('Could not detect existing tracking key, using default:', error);
-        detectedKey = '_tracking_number';
-      }
-    }
-    
-    // Get the current order to check for existing metadata
-    const currentOrder = await this.getOrder(orderId);
-    const existingMeta = currentOrder.meta_data.find(meta => meta.key === detectedKey);
-    
-    let updateData;
-    
-    if (existingMeta) {
-      // Update existing metadata with proper id
-      updateData = {
-        meta_data: [
-          {
-            id: existingMeta.id,
-            key: detectedKey,
-            value: trackingNumber,
-          }
-        ],
-      };
-    } else {
-      // For new metadata, we use a different approach - just the key/value without id
-      // WooCommerce will auto-assign an id when creating new metadata
-      updateData = {
-        meta_data: [
-          {
-            key: detectedKey,
-            value: trackingNumber,
-          }
-        ],
-      };
-    }
-    
-    console.log('Updating tracking for order:', orderId, 'with key:', detectedKey, 'value:', trackingNumber);
-    return this.updateOrder(orderId, updateData as Partial<WooCommerceOrder>);
+    console.log('Updating tracking for order:', orderId, 'with key:', key, 'value:', trackingNumber);
+    return this.updateOrder(orderId, updateData);
   }
 
-  // Products API with pagination
+  // Products API
   async getProducts(params: {
     status?: string;
     per_page?: number;
@@ -278,8 +201,8 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceProduct[]> {
     const queryParams = new URLSearchParams();
     
-    // Default pagination
-    queryParams.append('per_page', (params.per_page || 20).toString());
+    // Default to reasonable limits
+    queryParams.append('per_page', (params.per_page || 50).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -385,11 +308,11 @@ class WooCommerceService {
     }
   }
 
-  // Detect tracking meta key from recent orders
+  // Detect tracking meta key
   async detectTrackingMetaKey(): Promise<string[]> {
     try {
       console.log('Detecting tracking meta keys...');
-      const orders = await this.getOrders({ per_page: 20 });
+      const orders = await this.getOrders({ per_page: 10 });
       const trackingKeys = new Set<string>();
       
       orders.forEach(order => {
@@ -403,7 +326,7 @@ class WooCommerceService {
       
       const keys = Array.from(trackingKeys);
       console.log('Detected tracking keys:', keys);
-      return keys.length > 0 ? keys : ['_tracking_number']; // Default fallback
+      return keys;
     } catch (error) {
       console.error('Failed to detect tracking meta keys:', error);
       return ['_tracking_number']; // Default fallback
