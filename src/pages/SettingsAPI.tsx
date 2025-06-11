@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,27 +6,24 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Store, Eye, EyeOff, Copy, TestTube, CheckCircle, AlertCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Store, Eye, EyeOff, Copy, TestTube } from 'lucide-react';
 import { useWooCommerceConfig, useTrackingDetection } from '../hooks/useWooCommerce';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 const SettingsAPI = () => {
   const { config, saveConfig } = useWooCommerceConfig();
   const { data: trackingKeys } = useTrackingDetection();
-  const { user } = useAuth();
   const [showWooKeys, setShowWooKeys] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
   
   const [wooCommerceConfig, setWooCommerceConfig] = useState<WooCommerceConfig>({
     storeUrl: 'https://tharavix.com',
-    consumerKey: '',
-    consumerSecret: '',
+    consumerKey: 'ck_599f2b3ebf95fe43c9ec032de08ebb1e1b10428a',
+    consumerSecret: 'cs_f781a6ecf0d14294b126954a2e15428930b1ac29',
     environment: 'live',
     permissions: 'write',
     status: 'inactive',
@@ -43,7 +39,6 @@ const SettingsAPI = () => {
   }, [config]);
 
   const maskWooKey = (key: string) => {
-    if (!key || key.length < 8) return key;
     if (!showWooKeys) {
       return key.substring(0, 8) + '••••••••••••••••' + key.substring(key.length - 4);
     }
@@ -58,11 +53,6 @@ const SettingsAPI = () => {
   };
 
   const testWooConnection = async () => {
-    if (!wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
     setIsTestingConnection(true);
     
     try {
@@ -79,89 +69,42 @@ const SettingsAPI = () => {
       }
     } catch (error) {
       setConnectionStatus('failed');
-      console.error('Connection test failed:', error);
       toast.error('Connection test failed: ' + (error as Error).message);
     } finally {
       setIsTestingConnection(false);
     }
   };
 
-  const handleSaveWooConfig = async () => {
-    if (!wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    setIsSaving(true);
+  const handleSaveWooConfig = () => {
+    const updatedConfig = {
+      ...wooCommerceConfig,
+      status: connectionStatus === 'connected' ? 'active' as const : 'inactive' as const,
+      lastUsed: new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5),
+      lastSync: connectionStatus === 'connected' ? new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5) : ''
+    };
     
-    try {
-      const now = new Date();
-      const timestamp = now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0].substring(0, 5);
-      
-      const updatedConfig = {
-        ...wooCommerceConfig,
-        status: connectionStatus === 'connected' ? 'active' as const : 'inactive' as const,
-        lastUsed: timestamp,
-        lastSync: connectionStatus === 'connected' ? timestamp : wooCommerceConfig.lastSync || ''
-      };
-      
-      const success = await saveConfig(updatedConfig);
-      
-      if (success) {
-        toast.success('WooCommerce configuration saved successfully!');
-        setConnectionStatus('connected');
-      } else {
-        toast.error('Failed to save configuration. Please test connection first.');
-      }
-    } catch (error) {
-      console.error('Save failed:', error);
-      toast.error('Failed to save configuration');
-    } finally {
-      setIsSaving(false);
-    }
+    saveConfig(updatedConfig);
+    toast.success('WooCommerce configuration saved successfully!');
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-      case 'connected':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'failed':
-        return <AlertCircle className="w-4 h-4" />;
-      default:
-        return null;
-    }
+    return status === 'active' || status === 'connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Settings & API</h1>
-          <p className="text-muted-foreground mt-1">
-            Configure your WooCommerce store connection and manage settings
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold">Settings & API</h1>
         <Button variant="outline">
           API Documentation
         </Button>
       </div>
 
       <Tabs defaultValue="woocommerce" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="woocommerce">WooCommerce</TabsTrigger>
           <TabsTrigger value="tracking">Tracking Setup</TabsTrigger>
+          <TabsTrigger value="general">General</TabsTrigger>
         </TabsList>
 
         <TabsContent value="woocommerce" className="space-y-6">
@@ -178,15 +121,13 @@ const SettingsAPI = () => {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="storeUrl">Store URL *</Label>
+                  <Label htmlFor="storeUrl">Store URL</Label>
                   <Input
                     id="storeUrl"
                     value={wooCommerceConfig.storeUrl}
                     onChange={(e) => handleWooConfigUpdate('storeUrl', e.target.value)}
-                    placeholder="https://tharavix.com"
-                    className="font-mono"
+                    placeholder="https://yourstore.com"
                   />
-                  <p className="text-xs text-muted-foreground">Your WooCommerce store URL</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="environment">API Environment</Label>
@@ -198,7 +139,7 @@ const SettingsAPI = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="live">Live (Production)</SelectItem>
+                      <SelectItem value="live">Live</SelectItem>
                       <SelectItem value="development">Development</SelectItem>
                     </SelectContent>
                   </Select>
@@ -207,7 +148,7 @@ const SettingsAPI = () => {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>API Credentials</Label>
+                  <Label>Show API Keys</Label>
                   <Button
                     variant="outline"
                     size="sm"
@@ -218,64 +159,36 @@ const SettingsAPI = () => {
                   </Button>
                 </div>
 
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Generate these keys in your WooCommerce Admin → Settings → Advanced → REST API. 
-                    Make sure to set permissions to "Read/Write".
-                  </AlertDescription>
-                </Alert>
-
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="consumerKey">Consumer Key *</Label>
+                    <Label htmlFor="consumerKey">Consumer Key</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerKey"
                         type={showWooKeys ? "text" : "password"}
                         value={showWooKeys ? wooCommerceConfig.consumerKey : maskWooKey(wooCommerceConfig.consumerKey)}
                         onChange={(e) => handleWooConfigUpdate('consumerKey', e.target.value)}
-                        placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        placeholder="ck_xxxxxxxxxxxxxxxx"
                         className="font-mono text-sm"
                       />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          if (wooCommerceConfig.consumerKey) {
-                            navigator.clipboard.writeText(wooCommerceConfig.consumerKey);
-                            toast.success('Consumer key copied to clipboard');
-                          }
-                        }}
-                        disabled={!wooCommerceConfig.consumerKey}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerKey)}>
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="consumerSecret">Consumer Secret *</Label>
+                    <Label htmlFor="consumerSecret">Consumer Secret</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerSecret"
                         type={showWooKeys ? "text" : "password"}
                         value={showWooKeys ? wooCommerceConfig.consumerSecret : maskWooKey(wooCommerceConfig.consumerSecret)}
                         onChange={(e) => handleWooConfigUpdate('consumerSecret', e.target.value)}
-                        placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        placeholder="cs_xxxxxxxxxxxxxxxx"
                         className="font-mono text-sm"
                       />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          if (wooCommerceConfig.consumerSecret) {
-                            navigator.clipboard.writeText(wooCommerceConfig.consumerSecret);
-                            toast.success('Consumer secret copied to clipboard');
-                          }
-                        }}
-                        disabled={!wooCommerceConfig.consumerSecret}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerSecret)}>
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
@@ -285,7 +198,7 @@ const SettingsAPI = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>API Permissions</Label>
+                  <Label>Permissions</Label>
                   <Select 
                     value={wooCommerceConfig.permissions} 
                     onValueChange={(value: 'read' | 'write') => handleWooConfigUpdate('permissions', value)}
@@ -295,15 +208,14 @@ const SettingsAPI = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="read">Read Only</SelectItem>
-                      <SelectItem value="write">Read & Write (Recommended)</SelectItem>
+                      <SelectItem value="write">Read & Write</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Connection Status</Label>
                   <div className="flex items-center space-x-2">
-                    <Badge className={`${getStatusColor(connectionStatus)} flex items-center gap-1`}>
-                      {getStatusIcon(connectionStatus)}
+                    <Badge className={getStatusColor(connectionStatus)}>
                       {connectionStatus === 'connected' ? 'Connected' : 
                        connectionStatus === 'failed' ? 'Failed' : 'Not tested'}
                     </Badge>
@@ -311,14 +223,12 @@ const SettingsAPI = () => {
                 </div>
               </div>
 
-              {(wooCommerceConfig.lastUsed || wooCommerceConfig.lastSync) && (
+              {wooCommerceConfig.lastUsed && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                  {wooCommerceConfig.lastUsed && (
-                    <div className="space-y-1">
-                      <Label className="text-sm text-muted-foreground">Last Used</Label>
-                      <p className="text-sm font-mono">{wooCommerceConfig.lastUsed}</p>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Last Used</Label>
+                    <p className="text-sm font-mono">{wooCommerceConfig.lastUsed}</p>
+                  </div>
                   {wooCommerceConfig.lastSync && (
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Last Sync</Label>
@@ -331,17 +241,14 @@ const SettingsAPI = () => {
               <div className="flex gap-3 pt-4">
                 <Button 
                   onClick={testWooConnection}
-                  disabled={isTestingConnection || !wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret}
+                  disabled={isTestingConnection}
                   variant="outline"
                 >
                   <TestTube className="w-4 h-4 mr-2" />
                   {isTestingConnection ? 'Testing...' : 'Test Connection'}
                 </Button>
-                <Button 
-                  onClick={handleSaveWooConfig}
-                  disabled={isSaving || connectionStatus !== 'connected'}
-                >
-                  {isSaving ? 'Saving...' : 'Save Configuration'}
+                <Button onClick={handleSaveWooConfig}>
+                  Save Configuration
                 </Button>
               </div>
             </CardContent>
