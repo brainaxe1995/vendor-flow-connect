@@ -82,13 +82,42 @@ export interface TopSellerReport {
 class WooCommerceService {
   private config: WooCommerceConfig | null = null;
 
+  constructor() {
+    // Load configuration from localStorage on initialization
+    this.loadConfigFromStorage();
+  }
+
+  private loadConfigFromStorage() {
+    try {
+      const savedConfig = localStorage.getItem('woocommerce_config');
+      if (savedConfig) {
+        const parsedConfig = JSON.parse(savedConfig);
+        this.setConfig(parsedConfig);
+        console.log('WooCommerce config loaded from storage:', {
+          storeUrl: parsedConfig.storeUrl,
+          hasKey: !!parsedConfig.consumerKey,
+          hasSecret: !!parsedConfig.consumerSecret,
+          status: parsedConfig.status
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load WooCommerce config from storage:', error);
+      localStorage.removeItem('woocommerce_config');
+    }
+  }
+
   setConfig(config: WooCommerceConfig) {
     this.config = config;
     console.log('WooCommerce config updated:', { 
       storeUrl: config.storeUrl, 
       hasKey: !!config.consumerKey,
-      hasSecret: !!config.consumerSecret 
+      hasSecret: !!config.consumerSecret,
+      status: config.status
     });
+  }
+
+  getConfig(): WooCommerceConfig | null {
+    return this.config;
   }
 
   private getAuthString(): string {
@@ -102,6 +131,11 @@ class WooCommerceService {
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
+    // Ensure we have the latest config from storage
+    if (!this.config) {
+      this.loadConfigFromStorage();
+    }
+
     if (!this.config) {
       throw new Error('WooCommerce configuration not set. Please configure API credentials in Settings.');
     }
@@ -126,18 +160,25 @@ class WooCommerceService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error Response:', errorText);
+        console.error('API Error Response:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('API Response successful:', { endpoint, dataLength: Array.isArray(data) ? data.length : 'object' });
+      return data;
     } catch (error) {
-      console.error('WooCommerce API request failed:', error);
+      console.error('WooCommerce API request failed:', { url, error });
       throw error;
     }
   }
 
-  // Orders API
+  // Orders API with pagination support
   async getOrders(params: {
     status?: string;
     per_page?: number;
@@ -148,8 +189,8 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceOrder[]> {
     const queryParams = new URLSearchParams();
     
-    // Default to reasonable limits
-    queryParams.append('per_page', (params.per_page || 50).toString());
+    // Default pagination
+    queryParams.append('per_page', (params.per_page || 20).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -175,23 +216,39 @@ class WooCommerceService {
     });
   }
 
+  // Enhanced tracking update with dynamic meta key detection
   async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey?: string): Promise<WooCommerceOrder> {
-    const key = trackingKey || '_tracking_number';
+    let detectedKey = trackingKey;
+    
+    // If no key provided, try to detect from existing order data
+    if (!detectedKey) {
+      try {
+        const order = await this.getOrder(orderId);
+        const trackingMeta = order.meta_data.find(meta => {
+          const key = meta.key.toLowerCase();
+          return key.includes('tracking') || key.includes('track') || key.includes('shipment');
+        });
+        detectedKey = trackingMeta?.key || '_tracking_number';
+      } catch (error) {
+        console.warn('Could not detect existing tracking key, using default:', error);
+        detectedKey = '_tracking_number';
+      }
+    }
+    
     const updateData = {
       meta_data: [
         {
-          id: 0, // WooCommerce will assign the actual ID
-          key,
+          key: detectedKey,
           value: trackingNumber,
         }
       ],
     };
     
-    console.log('Updating tracking for order:', orderId, 'with key:', key, 'value:', trackingNumber);
+    console.log('Updating tracking for order:', orderId, 'with key:', detectedKey, 'value:', trackingNumber);
     return this.updateOrder(orderId, updateData);
   }
 
-  // Products API
+  // Products API with pagination
   async getProducts(params: {
     status?: string;
     per_page?: number;
@@ -201,8 +258,8 @@ class WooCommerceService {
   } = {}): Promise<WooCommerceProduct[]> {
     const queryParams = new URLSearchParams();
     
-    // Default to reasonable limits
-    queryParams.append('per_page', (params.per_page || 50).toString());
+    // Default pagination
+    queryParams.append('per_page', (params.per_page || 20).toString());
     queryParams.append('page', (params.page || 1).toString());
     
     Object.entries(params).forEach(([key, value]) => {
@@ -308,11 +365,11 @@ class WooCommerceService {
     }
   }
 
-  // Detect tracking meta key
+  // Detect tracking meta key from recent orders
   async detectTrackingMetaKey(): Promise<string[]> {
     try {
       console.log('Detecting tracking meta keys...');
-      const orders = await this.getOrders({ per_page: 10 });
+      const orders = await this.getOrders({ per_page: 20 });
       const trackingKeys = new Set<string>();
       
       orders.forEach(order => {
@@ -326,7 +383,7 @@ class WooCommerceService {
       
       const keys = Array.from(trackingKeys);
       console.log('Detected tracking keys:', keys);
-      return keys;
+      return keys.length > 0 ? keys : ['_tracking_number']; // Default fallback
     } catch (error) {
       console.error('Failed to detect tracking meta keys:', error);
       return ['_tracking_number']; // Default fallback
