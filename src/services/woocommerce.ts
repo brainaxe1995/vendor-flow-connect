@@ -275,6 +275,7 @@ class WooCommerceService {
     const updateData = {
       meta_data: [
         {
+          id: 0, // Use 0 for new meta data, WooCommerce will assign an ID
           key: trackingKey,
           value: trackingNumber,
         }
@@ -321,6 +322,15 @@ class WooCommerceService {
   // Legacy method for compatibility
   async getProducts(params: any = {}): Promise<WooCommerceProduct[]> {
     const response = await this.getProductsPaginated(params);
+    return response.data;
+  }
+
+  async updateProduct(productId: number, data: Partial<WooCommerceProduct>): Promise<WooCommerceProduct> {
+    console.log('Updating product:', productId, data);
+    const response = await this.makeRequest(`/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
     return response.data;
   }
 
@@ -403,3 +413,5 @@ class WooCommerceService {
 }
 
 export const wooCommerceService = new WooCommerceService();
+
+}

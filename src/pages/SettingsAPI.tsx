@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,7 +16,7 @@ import { toast } from 'sonner';
 
 const SettingsAPI = () => {
   const { config, saveConfig } = useWooCommerceConfig();
-  const { data: trackingKeys } = useTrackingDetection();
+  const { data: detectedTrackingKey } = useTrackingDetection();
   const [showWooKeys, setShowWooKeys] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
@@ -266,18 +267,16 @@ const SettingsAPI = () => {
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Detected Tracking Meta Keys</Label>
+                  <Label className="text-sm font-medium">Detected Tracking Meta Key</Label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    These are the tracking-related meta keys found in your recent orders:
+                    This is the tracking-related meta key found in your recent orders:
                   </p>
                   <div className="space-y-2">
-                    {trackingKeys && trackingKeys.length > 0 ? (
-                      trackingKeys.map((key) => (
-                        <div key={key} className="flex items-center justify-between p-2 border rounded">
-                          <code className="text-sm">{key}</code>
-                          <Badge variant="outline">Detected</Badge>
-                        </div>
-                      ))
+                    {detectedTrackingKey ? (
+                      <div className="flex items-center justify-between p-2 border rounded">
+                        <code className="text-sm">{detectedTrackingKey}</code>
+                        <Badge variant="outline">Detected</Badge>
+                      </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         No tracking meta keys detected. The system will use '_tracking_number' as default.
@@ -291,7 +290,7 @@ const SettingsAPI = () => {
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• The system automatically detects tracking meta keys from your orders</li>
                     <li>• When updating tracking numbers, it uses the detected key or falls back to '_tracking_number'</li>
-                    <li>• AAll tracking updates sync directly to your WooCommerce store</li>
+                    <li>• All tracking updates sync directly to your WooCommerce store</li>
                   </ul>
                 </div>
               </div>
