@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -396,7 +397,7 @@ const SettingsAPI = () => {
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• The system automatically detects tracking meta keys from your orders</li>
                     <li>• When updating tracking numbers, it uses the detected key or falls back to '_tracking_number'</li>
-                    <li>• AAll tracking updates sync directly to your WooCommerce store</li>
+                    <li>• All tracking updates sync directly to your WooCommerce store</li>
                   </ul>
                 </div>
               </div>
@@ -451,5 +452,3 @@ const SettingsAPI = () => {
 };
 
 export default SettingsAPI;
-
-}
