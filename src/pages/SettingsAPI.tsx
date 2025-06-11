@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Store, Eye, EyeOff, Copy, TestTube } from 'lucide-react';
+import { Store, Eye, EyeOff, Copy, TestTube, AlertTriangle } from 'lucide-react';
 import { useWooCommerceConfig, useTrackingDetection } from '../hooks/useWooCommerce';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
@@ -21,10 +20,11 @@ const SettingsAPI = () => {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'failed'>('unknown');
   
+  // Initialize with empty values - no hardcoded credentials
   const [wooCommerceConfig, setWooCommerceConfig] = useState<WooCommerceConfig>({
-    storeUrl: 'https://tharavix.com',
-    consumerKey: 'ck_1234567890abcdef1234567890abcdef12345678',
-    consumerSecret: 'cs_1234567890abcdef1234567890abcdef12345678',
+    storeUrl: '',
+    consumerKey: '',
+    consumerSecret: '',
     environment: 'live',
     permissions: 'write',
     status: 'inactive',
@@ -40,6 +40,7 @@ const SettingsAPI = () => {
   }, [config]);
 
   const maskWooKey = (key: string) => {
+    if (!key || key.length < 8) return key;
     if (!showWooKeys) {
       return key.substring(0, 8) + '••••••••••••••••' + key.substring(key.length - 4);
     }
@@ -54,6 +55,11 @@ const SettingsAPI = () => {
   };
 
   const testWooConnection = async () => {
+    if (!wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setIsTestingConnection(true);
     
     try {
@@ -76,16 +82,24 @@ const SettingsAPI = () => {
     }
   };
 
-  const handleSaveWooConfig = () => {
-    const updatedConfig = {
-      ...wooCommerceConfig,
-      status: connectionStatus === 'connected' ? 'active' as const : 'inactive' as const,
-      lastUsed: new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5),
-      lastSync: connectionStatus === 'connected' ? new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0].substring(0, 5) : ''
-    };
-    
-    saveConfig(updatedConfig);
-    toast.success('WooCommerce configuration saved successfully!');
+  const handleSaveWooConfig = async () => {
+    if (!wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const success = await saveConfig(wooCommerceConfig);
+      if (success) {
+        toast.success('WooCommerce configuration saved successfully!');
+        setConnectionStatus('connected');
+      } else {
+        toast.error('Failed to save configuration. Please check your credentials.');
+        setConnectionStatus('failed');
+      }
+    } catch (error) {
+      toast.error('Failed to save configuration: ' + (error as Error).message);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -120,14 +134,26 @@ const SettingsAPI = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {!config && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                    <p className="text-sm text-yellow-800">
+                      No WooCommerce configuration found. Please enter your store credentials below.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="storeUrl">Store URL</Label>
+                  <Label htmlFor="storeUrl">Store URL *</Label>
                   <Input
                     id="storeUrl"
                     value={wooCommerceConfig.storeUrl}
                     onChange={(e) => handleWooConfigUpdate('storeUrl', e.target.value)}
                     placeholder="https://yourstore.com"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -162,7 +188,7 @@ const SettingsAPI = () => {
 
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="consumerKey">Consumer Key</Label>
+                    <Label htmlFor="consumerKey">Consumer Key *</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerKey"
@@ -171,15 +197,18 @@ const SettingsAPI = () => {
                         onChange={(e) => handleWooConfigUpdate('consumerKey', e.target.value)}
                         placeholder="ck_xxxxxxxxxxxxxxxx"
                         className="font-mono text-sm"
+                        required
                       />
-                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerKey)}>
-                        <Copy className="w-4 h-4" />
-                      </Button>
+                      {wooCommerceConfig.consumerKey && (
+                        <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerKey)}>
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="consumerSecret">Consumer Secret</Label>
+                    <Label htmlFor="consumerSecret">Consumer Secret *</Label>
                     <div className="flex gap-2">
                       <Input
                         id="consumerSecret"
@@ -188,10 +217,13 @@ const SettingsAPI = () => {
                         onChange={(e) => handleWooConfigUpdate('consumerSecret', e.target.value)}
                         placeholder="cs_xxxxxxxxxxxxxxxx"
                         className="font-mono text-sm"
+                        required
                       />
-                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerSecret)}>
-                        <Copy className="w-4 h-4" />
-                      </Button>
+                      {wooCommerceConfig.consumerSecret && (
+                        <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(wooCommerceConfig.consumerSecret)}>
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -242,13 +274,16 @@ const SettingsAPI = () => {
               <div className="flex gap-3 pt-4">
                 <Button 
                   onClick={testWooConnection}
-                  disabled={isTestingConnection}
+                  disabled={isTestingConnection || !wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret}
                   variant="outline"
                 >
                   <TestTube className="w-4 h-4 mr-2" />
                   {isTestingConnection ? 'Testing...' : 'Test Connection'}
                 </Button>
-                <Button onClick={handleSaveWooConfig}>
+                <Button 
+                  onClick={handleSaveWooConfig}
+                  disabled={!wooCommerceConfig.storeUrl || !wooCommerceConfig.consumerKey || !wooCommerceConfig.consumerSecret}
+                >
                   Save Configuration
                 </Button>
               </div>
@@ -308,17 +343,17 @@ const SettingsAPI = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="companyName">Company Name</Label>
-                  <Input id="companyName" defaultValue="Acme Suppliers Inc." />
+                  <Input id="companyName" placeholder="Your Company Name" />
                 </div>
                 <div>
                   <Label htmlFor="contactEmail">Contact Email</Label>
-                  <Input id="contactEmail" defaultValue="contact@acmesuppliers.com" />
+                  <Input id="contactEmail" placeholder="contact@company.com" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" defaultValue="+1 (555) 123-4567" />
+                  <Input id="phone" placeholder="+1 (555) 123-4567" />
                 </div>
                 <div>
                   <Label htmlFor="timezone">Timezone</Label>
@@ -331,7 +366,7 @@ const SettingsAPI = () => {
               </div>
               <div>
                 <Label htmlFor="address">Business Address</Label>
-                <textarea id="address" className="w-full p-2 border rounded-md" defaultValue="123 Business St, Suite 100&#10;San Francisco, CA 94102" />
+                <textarea id="address" className="w-full p-2 border rounded-md" placeholder="Business address..." />
               </div>
               <div className="flex justify-end">
                 <Button>Save Changes</Button>

@@ -16,27 +16,21 @@ import {
   Bell
 } from 'lucide-react';
 import { useWooCommerceConfig, useNotifications } from '../../hooks/useWooCommerce';
+import { useAuth } from '../../contexts/AuthContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
 
 const AppLayout = () => {
   const location = useLocation();
   const { config, isConfigured } = useWooCommerceConfig();
   const { data: notifications } = useNotifications();
+  const { user, logout } = useAuth();
   
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
-
-  const handleLogout = () => {
-    localStorage.removeItem('woocommerce_config');
-    localStorage.removeItem('user_session');
-    toast.success('Logged out successfully');
-    window.location.reload();
-  };
 
   const menuItems = [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: LayoutDashboard,
       badge: null
     },
@@ -156,10 +150,11 @@ const AppLayout = () => {
 
               {/* User Info & Logout */}
               <div className="flex items-center gap-2">
-                <span className="text-sm">
-                  {config?.permissions === 'write' ? 'Admin' : 'Supplier'}
-                </span>
-                <Button variant="outline" size="sm" onClick={handleLogout}>
+                <div className="text-sm">
+                  <p className="font-medium">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={logout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>

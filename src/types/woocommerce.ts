@@ -6,8 +6,8 @@ export interface WooCommerceConfig {
   environment: 'live' | 'development';
   permissions: 'read' | 'write';
   status: 'active' | 'inactive';
-  lastUsed?: string;
-  lastSync?: string;
+  lastUsed: string;
+  lastSync: string;
 }
 
 export interface OrderStats {
@@ -18,6 +18,7 @@ export interface OrderStats {
   cancelled: number;
   refunded: number;
   failed: number;
+  pendingPayment: number;
   totalRevenue: number;
   refundRate: number;
 }
@@ -32,7 +33,7 @@ export interface ProductStats {
 
 export interface Notification {
   id: string;
-  type: 'order' | 'stock' | 'delay' | 'refund';
+  type: 'order' | 'stock' | 'delay' | 'system';
   title: string;
   message: string;
   time: string;
