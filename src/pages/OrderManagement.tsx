@@ -2,29 +2,14 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { Eye, Edit, Search, Calendar, RefreshCw, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOrders, useUpdateOrder, useTrackingDetection } from '../hooks/useWooCommerce';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import OrderFilters from '../components/order-management/OrderFilters';
+import OrderTable from '../components/order-management/OrderTable';
+import OrderDialog from '../components/order-management/OrderDialog';
 
 const OrderManagement = () => {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingOrder, setEditingOrder] = useState<any>(null);
@@ -154,6 +139,13 @@ const OrderManagement = () => {
     return trackingMeta?.key || trackingKeys?.[0] || '_tracking_number';
   };
 
+  const handleEditOrder = (order: any) => {
+    setEditingOrder(order);
+    setOrderStatus(order.status);
+    setTrackingNumber(getTrackingNumber(order) || '');
+    setIsDialogOpen(true);
+  };
+
   const handleUpdateOrder = async () => {
     if (!editingOrder) return;
 
@@ -212,248 +204,15 @@ const OrderManagement = () => {
     toast.success('Orders refreshed');
   };
 
-  const OrderTable = ({ 
-    orders, 
-    isLoading, 
-    showTracking = false,
-    totalPages = 1 
-  }: { 
-    orders: any[], 
-    isLoading: boolean, 
-    showTracking?: boolean,
-    totalPages?: number 
-  }) => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="ml-2">Loading orders...</span>
-        </div>
-      );
-    }
-
-    if (!orders || orders.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No orders found
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Date</TableHead>
-              {showTracking && <TableHead>Tracking</TableHead>}
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((order) => {
-              const tracking = getTrackingNumber(order);
-              return (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">#{order.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{order.billing.first_name} {order.billing.last_name}</p>
-                      <p className="text-sm text-muted-foreground">{order.billing.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.line_items.length}</TableCell>
-                  <TableCell>${order.total}</TableCell>
-                  <TableCell>{new Date(order.date_created).toLocaleDateString()}</TableCell>
-                  {showTracking && (
-                    <TableCell>
-                      {tracking ? (
-                        <code className="text-xs bg-muted px-2 py-1 rounded">{tracking}</code>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <Badge className={getStatusColor(order.status)}>
-                      {order.status.replace('-', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Dialog open={isDialogOpen && editingOrder?.id === order.id} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => {
-                              setEditingOrder(order);
-                              setOrderStatus(order.status);
-                              setTrackingNumber(tracking || '');
-                              setIsDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Update Order #{order.id}</DialogTitle>
-                            <DialogDescription>
-                              Manage order status, tracking, and communications
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="tracking">Tracking Number</Label>
-                                <Input 
-                                  id="tracking" 
-                                  placeholder="Enter tracking number"
-                                  value={trackingNumber}
-                                  onChange={(e) => setTrackingNumber(e.target.value)}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Meta key: {getTrackingMetaKey(order)}
-                                </p>
-                              </div>
-                              <div>
-                                <Label htmlFor="status">Order Status</Label>
-                                <Select value={orderStatus} onValueChange={setOrderStatus}>
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="processing">Processing</SelectItem>
-                                    <SelectItem value="on-hold">On Hold</SelectItem>
-                                    <SelectItem value="completed">Completed</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                    <SelectItem value="refunded">Refunded</SelectItem>
-                                    <SelectItem value="failed">Failed</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <div>
-                              <Label htmlFor="notes">Order Notes</Label>
-                              <Textarea 
-                                id="notes" 
-                                placeholder="Add notes about this order..."
-                                value={orderNotes}
-                                onChange={(e) => setOrderNotes(e.target.value)}
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                                Cancel
-                              </Button>
-                              <Button 
-                                onClick={handleUpdateOrder}
-                                disabled={updateOrderMutation.isPending}
-                              >
-                                {updateOrderMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Saving...
-                                  </>
-                                ) : (
-                                  'Save Changes'
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        {totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else {
-                  if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                }
-                
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(pageNum)}
-                      isActive={currentPage === pageNum}
-                      className="cursor-pointer"
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
-        
-        <div className="text-center text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages} • {orders.length} orders shown
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Order Management</h1>
-        <div className="flex gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search orders..." 
-              className="pl-10 w-64"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <OrderFilters 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onRefresh={handleRefresh}
+        />
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
@@ -498,6 +257,11 @@ const OrderManagement = () => {
                 orders={pendingOrders} 
                 isLoading={pendingLoading} 
                 totalPages={pendingData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -515,6 +279,11 @@ const OrderManagement = () => {
                 isLoading={processingLoading} 
                 showTracking={true}
                 totalPages={processingData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -532,6 +301,11 @@ const OrderManagement = () => {
                 isLoading={inTransitLoading} 
                 showTracking={true}
                 totalPages={inTransitData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -548,6 +322,11 @@ const OrderManagement = () => {
                 orders={onHoldOrders} 
                 isLoading={onHoldLoading}
                 totalPages={onHoldData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -565,6 +344,11 @@ const OrderManagement = () => {
                 isLoading={completedLoading} 
                 showTracking={true}
                 totalPages={completedData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -581,6 +365,11 @@ const OrderManagement = () => {
                 orders={cancelledOrders} 
                 isLoading={cancelledLoading}
                 totalPages={cancelledData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -597,6 +386,11 @@ const OrderManagement = () => {
                 orders={refundedOrders} 
                 isLoading={refundedLoading}
                 totalPages={refundedData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -613,6 +407,11 @@ const OrderManagement = () => {
                 orders={failedOrders} 
                 isLoading={failedLoading}
                 totalPages={failedData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
@@ -629,11 +428,31 @@ const OrderManagement = () => {
                 orders={pendingPaymentOrders} 
                 isLoading={pendingPaymentLoading}
                 totalPages={pendingPaymentData?.totalPages || 1}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                onEditOrder={handleEditOrder}
+                getStatusColor={getStatusColor}
+                getTrackingNumber={getTrackingNumber}
               />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <OrderDialog 
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        order={editingOrder}
+        trackingNumber={trackingNumber}
+        orderStatus={orderStatus}
+        orderNotes={orderNotes}
+        onTrackingNumberChange={setTrackingNumber}
+        onOrderStatusChange={setOrderStatus}
+        onOrderNotesChange={setOrderNotes}
+        onSave={handleUpdateOrder}
+        isSaving={updateOrderMutation.isPending}
+        getTrackingMetaKey={getTrackingMetaKey}
+      />
     </div>
   );
 };

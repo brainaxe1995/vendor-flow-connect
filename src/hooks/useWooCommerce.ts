@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceService, WooCommerceOrder, WooCommerceProduct } from '../services/woocommerce';
@@ -57,12 +56,20 @@ export const useOrders = (params?: {
   after?: string;
   before?: string;
   search?: string;
+  meta_key?: string;
+  meta_compare?: string;
 }) => {
   const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['orders', params],
-    queryFn: () => wooCommerceService.getOrders(params),
+    queryFn: async () => {
+      const orders = await wooCommerceService.getOrders(params);
+      return {
+        orders: orders || [],
+        totalPages: Math.ceil((orders?.length || 0) / (params?.per_page || 100))
+      };
+    },
     enabled: isConfigured,
     refetchInterval: 30000,
     retry: 3,
@@ -126,17 +133,17 @@ export const useUpdateProduct = () => {
 export const useOrderStats = () => {
   const { data: orders, isLoading, error } = useOrders({ per_page: 100 });
   
-  const stats = orders ? {
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    onHold: orders.filter(o => o.status === 'on-hold').length,
-    completed: orders.filter(o => o.status === 'completed').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length,
-    refunded: orders.filter(o => o.status === 'refunded').length,
-    failed: orders.filter(o => o.status === 'failed').length,
-    pendingPayment: orders.filter(o => o.status === 'pending-payment').length,
-    totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total), 0),
-    refundRate: orders.length > 0 ? (orders.filter(o => o.status === 'refunded').length / orders.length) * 100 : 0,
+  const stats = orders?.orders ? {
+    pending: orders.orders.filter(o => o.status === 'pending').length,
+    processing: orders.orders.filter(o => o.status === 'processing').length,
+    onHold: orders.orders.filter(o => o.status === 'on-hold').length,
+    completed: orders.orders.filter(o => o.status === 'completed').length,
+    cancelled: orders.orders.filter(o => o.status === 'cancelled').length,
+    refunded: orders.orders.filter(o => o.status === 'refunded').length,
+    failed: orders.orders.filter(o => o.status === 'failed').length,
+    pendingPayment: orders.orders.filter(o => o.status === 'pending-payment').length,
+    totalRevenue: orders.orders.reduce((sum, order) => sum + parseFloat(order.total), 0),
+    refundRate: orders.orders.length > 0 ? (orders.orders.filter(o => o.status === 'refunded').length / orders.orders.length) * 100 : 0,
   } : undefined;
 
   return { data: stats, isLoading, error };
@@ -162,13 +169,13 @@ export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    if (!orders || !products) return;
+    if (!orders?.orders || !products) return;
 
     const newNotifications: Notification[] = [];
     const now = new Date();
 
     // New orders notifications (last 24 hours)
-    orders.forEach(order => {
+    orders.orders.forEach(order => {
       const orderDate = new Date(order.date_created);
       const hoursSinceOrder = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
       
