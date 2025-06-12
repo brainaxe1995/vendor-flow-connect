@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Truck, Package, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { useOrders, useUpdateOrder } from '../hooks/useWooCommerce';
+import { getTrackingNumber } from '@/utils/orderUtils';
 import { toast } from 'sonner';
 
 const LogisticsShipping = () => {
@@ -33,22 +33,11 @@ const LogisticsShipping = () => {
   const shippedOrders = shippedData?.data || [];
   const onHoldOrders = onHoldData?.data || [];
 
-  // Filter orders based on tracking status for proper categorization
+  // Filter orders based on tracking status for proper categorization using imported utility
   const readyToShipOrders = processingOrders.filter(order => !getTrackingNumber(order));
   const inTransitOrders = processingOrders.filter(order => getTrackingNumber(order));
 
   const updateOrderMutation = useUpdateOrder();
-
-  const getTrackingNumber = (order: any) => {
-    if (!order.meta_data) return null;
-    
-    const trackingMeta = order.meta_data.find((meta: any) => {
-      const key = meta.key.toLowerCase();
-      return key.includes('tracking') || key.includes('track') || key.includes('shipment');
-    });
-    
-    return trackingMeta?.value || null;
-  };
 
   const getShipmentStatus = (order: any) => {
     const tracking = getTrackingNumber(order);
