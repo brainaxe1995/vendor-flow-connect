@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/common/ErrorBoundary";
+import DataPreloader from "./components/DataPreloader";
+import { WooCommerceConfigProvider } from "./hooks/useWooCommerceConfig";
 import Login from "./pages/Login";
 import Auth from "./pages/Auth";
 import SupplierLayout from "./components/layouts/SupplierLayout";
@@ -46,19 +48,20 @@ const queryClient = new QueryClient({
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <SupplierLayout />
-              </ProtectedRoute>
-            }>
+      <WooCommerceConfigProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <SupplierLayout />
+                </ProtectedRoute>
+              }>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="logistics" element={<LogisticsShipping />} />
@@ -73,8 +76,10 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <DataPreloader />
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </WooCommerceConfigProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );
