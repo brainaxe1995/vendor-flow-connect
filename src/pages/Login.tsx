@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
@@ -18,24 +18,20 @@ const Login = () => {
   const [activeTab, setActiveTab] = useState('supplier');
   const [error, setError] = useState('');
   
-  const {
-    login,
-    isAuthenticated,
-    user
-  } = useAuth();
+  const { user, signIn, loading } = useSupabaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/dashboard';
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (user && !loading) {
       console.log('User already authenticated, redirecting to:', from);
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, from]);
+  }, [user, loading, navigate, from]);
 
-  const handleLogin = async (role: 'supplier' | 'admin') => {
+  const handleLogin = async () => {
     setError('');
     
     if (!email.trim() || !password.trim()) {
@@ -51,18 +47,23 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      console.log(`Attempting ${role} login for:`, email);
-      const success = await login(email.trim(), password, role);
+      console.log('Attempting Supabase login for:', email);
+      const { error: signInError } = await signIn(email.trim(), password);
       
-      if (success) {
-        toast.success(`${role === 'admin' ? 'Admin' : 'Supplier'} login successful!`);
-        navigate(from, { replace: true });
-      } else {
-        setError('Invalid credentials. Please try again.');
+      if (signInError) {
+        console.error('Login error:', signInError);
+        if (signInError.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else {
+          setError(signInError.message);
+        }
         toast.error('Login failed - check your credentials');
+      } else {
+        toast.success('Login successful!');
+        navigate(from, { replace: true });
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Unexpected login error:', error);
       const errorMessage = error.message || 'Login failed. Please try again.';
       setError(errorMessage);
       toast.error('Login failed');
@@ -77,6 +78,14 @@ const Login = () => {
     setEmail('');
     setPassword('');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -119,7 +128,7 @@ const Login = () => {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     disabled={isLoading} 
-                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin('supplier')} 
+                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin()} 
                   />
                 </div>
                 <div className="space-y-2">
@@ -131,11 +140,11 @@ const Login = () => {
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     disabled={isLoading} 
-                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin('supplier')} 
+                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin()} 
                   />
                 </div>
                 <Button 
-                  onClick={() => handleLogin('supplier')} 
+                  onClick={handleLogin} 
                   className="w-full" 
                   disabled={isLoading}
                 >
@@ -160,7 +169,7 @@ const Login = () => {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     disabled={isLoading} 
-                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin('admin')} 
+                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin()} 
                   />
                 </div>
                 <div className="space-y-2">
@@ -172,11 +181,11 @@ const Login = () => {
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     disabled={isLoading} 
-                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin('admin')} 
+                    onKeyDown={e => e.key === 'Enter' && !isLoading && handleLogin()} 
                   />
                 </div>
                 <Button 
-                  onClick={() => handleLogin('admin')} 
+                  onClick={handleLogin} 
                   className="w-full" 
                   disabled={isLoading}
                 >
@@ -195,8 +204,8 @@ const Login = () => {
         </Card>
 
         <div className="text-center text-sm text-muted-foreground space-y-1">
-          <p>Demo credentials: any email/password combination</p>
-          <p className="text-xs">Session expires after 24 hours</p>
+          <p>Use your Supabase credentials to sign in</p>
+          <p className="text-xs">Secure authentication powered by Supabase</p>
         </div>
       </div>
     </div>

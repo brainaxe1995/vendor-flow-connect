@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
 import { useSupabaseConfig } from './useSupabaseConfig';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseAuth } from './useSupabaseAuth';
 
 // Helper for deep equality check to prevent redundant config updates
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -25,7 +25,7 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
 };
 
 export const useWooCommerceConfig = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { config: supabaseConfig, saveWooCommerceConfig: saveToSupabase, loadWooCommerceConfig } = useSupabaseConfig();
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
