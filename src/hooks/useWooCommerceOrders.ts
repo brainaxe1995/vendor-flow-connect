@@ -89,16 +89,18 @@ export const useInTransitOrders = () => {
   // Safely handle the data with proper initialization
   const orders = ordersResponse?.data || [];
   
-  // Fixed: Initialize inTransitOrders properly to avoid 'x' before initialization error
+  // Fixed: Properly initialize inTransitOrders and fix the filter logic
   const inTransitOrders = Array.isArray(orders) ? orders.filter(order => {
+    // Early return if order or meta_data is invalid
     if (!order || !order.meta_data || !Array.isArray(order.meta_data)) {
       return false;
     }
     
-    return order.meta_data.some(meta => {
-      if (!meta || !meta.key) return false;
-      const keyLower = meta.key.toLowerCase();
-      return keyLower.includes('tracking') && meta.value && meta.value.trim() !== '';
+    // Check if any meta_data entry contains tracking information
+    return order.meta_data.some(metaItem => {
+      if (!metaItem || !metaItem.key) return false;
+      const keyLower = metaItem.key.toLowerCase();
+      return keyLower.includes('tracking') && metaItem.value && metaItem.value.trim() !== '';
     });
   }) : [];
 
