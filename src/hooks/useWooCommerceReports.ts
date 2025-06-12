@@ -74,6 +74,55 @@ export const useTopSellers = (params?: {
   });
 };
 
+export interface TopSellingProduct {
+  id: number;
+  name: string;
+  quantity: number;
+  sku?: string;
+  image?: string;
+}
+
+export const useTopSellingProducts = (params?: {
+  period?: string;
+  date_min?: string;
+  date_max?: string;
+  per_page?: number;
+}) => {
+  const { isConfigured } = useWooCommerceConfig();
+
+  const dateParams = params?.date_min && params?.date_max ?
+    params :
+    { ...params, ...getLastThirtyDaysRange() };
+
+  return useQuery({
+    queryKey: ['top-selling-products', dateParams],
+    queryFn: async (): Promise<TopSellingProduct[]> => {
+      const top = await wooCommerceService.getTopSellersReport({
+        ...dateParams,
+        per_page: validatePerPage(params?.per_page),
+      });
+
+      const ids = top.map(t => t.product_id);
+      const products = await wooCommerceService.getProductsByIds(ids);
+      const productMap = new Map(products.map(p => [p.id, p]));
+
+      return top.map(t => {
+        const prod = productMap.get(t.product_id);
+        return {
+          id: t.product_id,
+          name: prod?.name || t.product_name,
+          quantity: t.quantity,
+          sku: prod?.sku,
+          image: prod?.images?.[0]?.src,
+        };
+      });
+    },
+    enabled: isConfigured,
+    staleTime: 10 * 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+};
+
 // Export hook
 export const useExportData = () => {
   return useMutation({
