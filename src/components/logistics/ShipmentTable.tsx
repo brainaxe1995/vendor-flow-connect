@@ -4,17 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye } from 'lucide-react';
 import { getTrackingNumber } from '@/utils/orderUtils';
 
 interface ShipmentTableProps {
   orders: any[];
   isLoading: boolean;
   showAddTracking?: boolean;
+  showTracking?: boolean;
   trackingInputs: Record<number, string>;
   updatingOrderId: number | null;
   onTrackingInputChange: (orderId: number, value: string) => void;
   onAddTracking: (orderId: number) => void;
+  onViewTracking?: (orderId: number, trackingNumber: string) => void;
   getShipmentStatus: (order: any) => { status: string; color: string };
 }
 
@@ -22,10 +24,12 @@ const ShipmentTable: React.FC<ShipmentTableProps> = ({
   orders,
   isLoading,
   showAddTracking = false,
+  showTracking = false,
   trackingInputs,
   updatingOrderId,
   onTrackingInputChange,
   onAddTracking,
+  onViewTracking,
   getShipmentStatus,
 }) => {
   if (isLoading) {
@@ -55,7 +59,7 @@ const ShipmentTable: React.FC<ShipmentTableProps> = ({
           <TableHead>Tracking Number</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Date</TableHead>
-          {showAddTracking && <TableHead>Actions</TableHead>}
+          {(showAddTracking || showTracking) && <TableHead>Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -93,31 +97,46 @@ const ShipmentTable: React.FC<ShipmentTableProps> = ({
                 </Badge>
               </TableCell>
               <TableCell>{new Date(order.date_created).toLocaleDateString()}</TableCell>
-              {showAddTracking && (
+              {(showAddTracking || showTracking) && (
                 <TableCell>
-                  {!tracking ? (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Tracking number"
-                        value={trackingInputs[order.id] || ''}
-                        onChange={(e) => onTrackingInputChange(order.id, e.target.value)}
-                        className="w-32 text-xs"
-                      />
+                  <div className="flex gap-2">
+                    {showAddTracking && !tracking && (
+                      <>
+                        <Input
+                          placeholder="Tracking number"
+                          value={trackingInputs[order.id] || ''}
+                          onChange={(e) => onTrackingInputChange(order.id, e.target.value)}
+                          className="w-32 text-xs"
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => onAddTracking(order.id)}
+                          disabled={isUpdating || !trackingInputs[order.id]?.trim()}
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'Add'
+                          )}
+                        </Button>
+                      </>
+                    )}
+                    {showTracking && tracking && onViewTracking && (
                       <Button 
                         size="sm" 
-                        onClick={() => onAddTracking(order.id)}
-                        disabled={isUpdating || !trackingInputs[order.id]?.trim()}
+                        variant="outline"
+                        onClick={() => onViewTracking(order.id, tracking)}
                       >
-                        {isUpdating ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          'Add'
-                        )}
+                        <Eye className="w-3 h-3 mr-1" />
+                        Track
                       </Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-green-600">✓ Shipped</span>
-                  )}
+                    )}
+                    {tracking && (
+                      <span className="text-sm text-green-600 flex items-center">
+                        ✓ Shipped
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
               )}
             </TableRow>

@@ -18,6 +18,7 @@ interface ShipmentTabsProps {
   updatingOrderId: number | null;
   onTrackingInputChange: (orderId: number, value: string) => void;
   onAddTracking: (orderId: number) => void;
+  onViewTracking?: (orderId: number, trackingNumber: string) => void;
   getShipmentStatus: (order: any) => { status: string; color: string };
 }
 
@@ -33,6 +34,7 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
   updatingOrderId,
   onTrackingInputChange,
   onAddTracking,
+  onViewTracking,
   getShipmentStatus,
 }) => {
   return (
@@ -71,6 +73,7 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
               updatingOrderId={updatingOrderId}
               onTrackingInputChange={onTrackingInputChange}
               onAddTracking={onAddTracking}
+              onViewTracking={onViewTracking}
               getShipmentStatus={getShipmentStatus}
             />
           </CardContent>
@@ -87,10 +90,12 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <ShipmentTable 
               orders={inTransitOrders} 
               isLoading={processingLoading}
+              showTracking={true}
               trackingInputs={trackingInputs}
               updatingOrderId={updatingOrderId}
               onTrackingInputChange={onTrackingInputChange}
               onAddTracking={onAddTracking}
+              onViewTracking={onViewTracking}
               getShipmentStatus={getShipmentStatus}
             />
           </CardContent>
@@ -111,6 +116,7 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
               updatingOrderId={updatingOrderId}
               onTrackingInputChange={onTrackingInputChange}
               onAddTracking={onAddTracking}
+              onViewTracking={onViewTracking}
               getShipmentStatus={getShipmentStatus}
             />
           </CardContent>
@@ -127,10 +133,12 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <ShipmentTable 
               orders={shippedOrders} 
               isLoading={shippedLoading}
+              showTracking={true}
               trackingInputs={trackingInputs}
               updatingOrderId={updatingOrderId}
               onTrackingInputChange={onTrackingInputChange}
               onAddTracking={onAddTracking}
+              onViewTracking={onViewTracking}
               getShipmentStatus={getShipmentStatus}
             />
           </CardContent>

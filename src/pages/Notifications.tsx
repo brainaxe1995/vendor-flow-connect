@@ -4,85 +4,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Check, Trash2, Filter } from 'lucide-react';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  type: 'info' | 'warning' | 'success' | 'error';
-  read: boolean;
-  category: 'orders' | 'inventory' | 'shipping' | 'system';
-}
+import { Bell, Check, Trash2, Loader2 } from 'lucide-react';
+import { useSupabaseNotifications } from '@/hooks/useSupabaseNotifications';
+import { toast } from 'sonner';
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'New Order Received',
-      message: 'Order #7250 has been placed by ARTURS VEZNOVECS and needs processing. Total amount: $45.99',
-      timestamp: '2024-06-09 14:30:00',
-      type: 'info',
-      read: false,
-      category: 'orders'
-    },
-    {
-      id: '2',
-      title: 'Low Stock Alert',
-      message: 'Test Adipine (Adipine XL / Adipine MR) stock is running low. Current stock: 5 items. Consider reordering.',
-      timestamp: '2024-06-09 13:15:00',
-      type: 'warning',
-      read: false,
-      category: 'inventory'
-    },
-    {
-      id: '3',
-      title: 'Shipment Delivered',
-      message: 'Order #7242 for Rebecca Mcallister has been successfully delivered to Belfast, BT14 7EJ, GB',
-      timestamp: '2024-06-09 12:00:00',
-      type: 'success',
-      read: true,
-      category: 'shipping'
-    },
-    {
-      id: '4',
-      title: 'Payment Failed',
-      message: 'Payment for order #7235 failed. Customer has been notified to update payment method.',
-      timestamp: '2024-06-09 10:45:00',
-      type: 'error',
-      read: false,
-      category: 'orders'
-    },
-    {
-      id: '5',
-      title: 'System Maintenance',
-      message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM EST.',
-      timestamp: '2024-06-08 16:00:00',
-      type: 'info',
-      read: true,
-      category: 'system'
-    }
-  ]);
-
+  const { notifications, loading, markAsRead, markAllAsRead } = useSupabaseNotifications();
   const [activeTab, setActiveTab] = useState('all');
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markAsRead(id);
+      toast.success('Notification marked as read');
+    } catch (error) {
+      toast.error('Failed to mark notification as read');
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, read: true }))
-    );
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      toast.error('Failed to mark all notifications as read');
+    }
   };
 
   const getFilteredNotifications = () => {
@@ -90,11 +35,11 @@ const Notifications = () => {
       case 'unread':
         return notifications.filter(n => !n.read);
       case 'orders':
-        return notifications.filter(n => n.category === 'orders');
+        return notifications.filter(n => n.type === 'info' || (n.data && n.data.category === 'orders'));
       case 'inventory':
-        return notifications.filter(n => n.category === 'inventory');
+        return notifications.filter(n => n.type === 'warning' || (n.data && n.data.category === 'inventory'));
       case 'shipping':
-        return notifications.filter(n => n.category === 'shipping');
+        return notifications.filter(n => n.type === 'success' || (n.data && n.data.category === 'shipping'));
       default:
         return notifications;
     }
@@ -136,6 +81,17 @@ const Notifications = () => {
   const filteredNotifications = getFilteredNotifications();
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading notifications...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -150,7 +106,7 @@ const Notifications = () => {
         </div>
         <div className="flex gap-2">
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
+            <Button variant="outline" onClick={handleMarkAllAsRead}>
               <Check className="w-4 h-4 mr-2" />
               Mark All Read ({unreadCount})
             </Button>
@@ -167,13 +123,13 @@ const Notifications = () => {
             Unread <Badge variant="destructive">{unreadCount}</Badge>
           </TabsTrigger>
           <TabsTrigger value="orders" className="flex items-center gap-2">
-            Orders <Badge variant="secondary">{notifications.filter(n => n.category === 'orders').length}</Badge>
+            Orders <Badge variant="secondary">{notifications.filter(n => n.type === 'info').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex items-center gap-2">
-            Inventory <Badge variant="secondary">{notifications.filter(n => n.category === 'inventory').length}</Badge>
+            Inventory <Badge variant="secondary">{notifications.filter(n => n.type === 'warning').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="shipping" className="flex items-center gap-2">
-            Shipping <Badge variant="secondary">{notifications.filter(n => n.category === 'shipping').length}</Badge>
+            Shipping <Badge variant="secondary">{notifications.filter(n => n.type === 'success').length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -203,15 +159,12 @@ const Notifications = () => {
                           <Badge className={getNotificationBadgeColor(notification.type)} variant="outline">
                             {notification.type}
                           </Badge>
-                          <Badge variant="outline" className="capitalize">
-                            {notification.category}
-                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatTimestamp(notification.timestamp)}
+                          {formatTimestamp(notification.created_at)}
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -219,18 +172,11 @@ const Notifications = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={() => handleMarkAsRead(notification.id)}
                           >
                             <Check className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteNotification(notification.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   </CardContent>

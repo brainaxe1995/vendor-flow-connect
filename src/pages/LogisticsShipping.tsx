@@ -5,11 +5,14 @@ import { getTrackingNumber, getTrackingMetaKey } from '@/utils/orderUtils';
 import { toast } from 'sonner';
 import LogisticsHeader from '@/components/logistics/LogisticsHeader';
 import ShipmentTabs from '@/components/logistics/ShipmentTabs';
+import TrackingInfoComponent from '@/components/logistics/TrackingInfo';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const LogisticsShipping = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
+  const [selectedOrderTracking, setSelectedOrderTracking] = useState<{orderId: number, trackingNumber: string} | null>(null);
 
   // Get tracking keys for dynamic key detection
   const { data: trackingKeys } = useTrackingDetection();
@@ -75,7 +78,7 @@ const LogisticsShipping = () => {
       return;
     }
 
-    // Use dynamic tracking key detection
+    // Use dynamic tracking key detection with priority for _wot_tracking_number
     const trackingKey = getTrackingMetaKey(order, trackingKeys);
     console.log('Using tracking key for order', orderId, ':', trackingKey);
 
@@ -109,6 +112,10 @@ const LogisticsShipping = () => {
     }
   };
 
+  const handleViewTracking = (orderId: number, trackingNumber: string) => {
+    setSelectedOrderTracking({ orderId, trackingNumber });
+  };
+
   return (
     <div className="p-6 space-y-6">
       <LogisticsHeader 
@@ -128,8 +135,26 @@ const LogisticsShipping = () => {
         updatingOrderId={updatingOrderId}
         onTrackingInputChange={handleTrackingInputChange}
         onAddTracking={handleAddTracking}
+        onViewTracking={handleViewTracking}
         getShipmentStatus={getShipmentStatus}
       />
+
+      {/* Enhanced Tracking Dialog */}
+      <Dialog open={!!selectedOrderTracking} onOpenChange={() => setSelectedOrderTracking(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Tracking Details - Order #{selectedOrderTracking?.orderId}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedOrderTracking && (
+            <TrackingInfoComponent
+              trackingNumber={selectedOrderTracking.trackingNumber}
+              orderId={selectedOrderTracking.orderId}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

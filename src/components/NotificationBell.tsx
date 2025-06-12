@@ -5,57 +5,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  type: 'info' | 'warning' | 'success' | 'error';
-  read: boolean;
-}
+import { useSupabaseNotifications } from '@/hooks/useSupabaseNotifications';
 
 const NotificationBell = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Mock notifications - in production this would come from your API
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'New Order Received',
-      message: 'Order #7250 has been placed and needs processing',
-      timestamp: '5 minutes ago',
-      type: 'info',
-      read: false
-    },
-    {
-      id: '2',
-      title: 'Low Stock Alert',
-      message: 'Test Adipine stock is running low (5 items left)',
-      timestamp: '1 hour ago',
-      type: 'warning',
-      read: false
-    },
-    {
-      id: '3',
-      title: 'Shipment Delivered',
-      message: 'Order #7242 has been successfully delivered',
-      timestamp: '2 hours ago',
-      type: 'success',
-      read: true
-    }
-  ]);
+  const { notifications, loading, markAsRead, markAllAsRead } = useSupabaseNotifications();
+
+  // Filter to show only recent unread notifications (last 10)
+  const recentNotifications = notifications
+    .filter(n => !n.read)
+    .slice(0, 10)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: any) => {
     // Mark as read
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notification.id ? { ...n, read: true } : n
-      )
-    );
+    await markAsRead(notification.id);
     
     // Close dropdown
     setIsOpen(false);
@@ -64,10 +31,8 @@ const NotificationBell = () => {
     navigate('/notifications');
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    );
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
   };
 
   const getNotificationIcon = (type: string) => {
@@ -75,9 +40,33 @@ const NotificationBell = () => {
       case 'warning': return '⚠️';
       case 'success': return '✅';
       case 'error': return '❌';
+      case 'info': return 'ℹ️';
       default: return 'ℹ️';
     }
   };
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      return `${diffInMinutes} minutes ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hours ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  if (loading) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Bell className="h-4 w-4" />
+      </Button>
+    );
+  }
 
   return (
     <div className="relative">
@@ -93,7 +82,7 @@ const NotificationBell = () => {
             variant="destructive" 
             className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
           >
-            {unreadCount}
+            {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>
         )}
       </Button>
@@ -116,7 +105,7 @@ const NotificationBell = () => {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      onClick={markAllAsRead}
+                      onClick={handleMarkAllAsRead}
                       className="text-xs"
                     >
                       Mark all read
@@ -133,13 +122,13 @@ const NotificationBell = () => {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {notifications.length === 0 ? (
+              {recentNotifications.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">
-                  No notifications
+                  No new notifications
                 </div>
               ) : (
                 <div className="max-h-64 overflow-y-auto">
-                  {notifications.map((notification) => (
+                  {recentNotifications.map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
@@ -164,7 +153,7 @@ const NotificationBell = () => {
                             {notification.message}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {notification.timestamp}
+                            {formatTimestamp(notification.created_at)}
                           </p>
                         </div>
                       </div>
