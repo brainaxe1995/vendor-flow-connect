@@ -25,7 +25,7 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
 };
 
 export const useWooCommerceConfig = () => {
-  const { user } = useSupabaseAuth();
+  const { user, loading: authLoading } = useSupabaseAuth();
   const {
     config: supabaseConfig,
     saveWooCommerceConfig: saveToSupabase,
@@ -37,6 +37,11 @@ export const useWooCommerceConfig = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
     if (user && supabaseConfig) {
       if (!deepEqual(config, supabaseConfig)) {
         setConfig(supabaseConfig);
@@ -54,7 +59,7 @@ export const useWooCommerceConfig = () => {
       setLoading(false);
       console.log('User logged out, clearing WooCommerce config');
     }
-  }, [user, supabaseConfig, supabaseLoading]);
+  }, [user, supabaseConfig, supabaseLoading, authLoading]);
 
   // Update loading state when Supabase hook is fetching
   useEffect(() => {
