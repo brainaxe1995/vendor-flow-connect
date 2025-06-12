@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Store, Eye, EyeOff, Copy, TestTube, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerceConfig';
 import { wooCommerceService } from '@/services/woocommerce';
 import { WooCommerceConfig } from '@/types/woocommerce';
 import { toast } from 'sonner';
@@ -143,7 +143,7 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
       
       if (success) {
         setConnectionStatus('connected');
-        toast.success('WooCommerce configuration saved to Supabase successfully!');
+        toast.success('WooCommerce configuration saved successfully!');
       } else {
         setConnectionStatus('failed');
         toast.error('Failed to save configuration. Please check your credentials.');
@@ -188,7 +188,7 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
           {getConnectionIcon()}
         </CardTitle>
         <CardDescription>
-          Configure your WooCommerce store connection settings. These credentials are stored securely in Supabase and used for all API communications.
+          Configure your WooCommerce store connection settings. These credentials are stored securely and used for all API communications.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -344,7 +344,7 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
             onClick={handleSaveWooConfig}
             disabled={isTestingConnection}
           >
-            Save to Supabase
+            Save Configuration
           </Button>
         </div>
       </CardContent>
