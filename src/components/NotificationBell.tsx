@@ -37,11 +37,18 @@ const NotificationBell = () => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'warning': return '⚠️';
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'info': return 'ℹ️';
-      default: return 'ℹ️';
+      case 'order':
+        return '📦';
+      case 'product':
+        return '🛒';
+      case 'system':
+        return '⚙️';
+      case 'compliance':
+        return '📄';
+      case 'payment':
+        return '💳';
+      default:
+        return 'ℹ️';
     }
   };
 

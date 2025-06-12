@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Check, Trash2, Loader2 } from 'lucide-react';
+import { Bell, Check, Loader2 } from 'lucide-react';
 import { useSupabaseNotifications } from '@/hooks/useSupabaseNotifications';
 import { toast } from 'sonner';
 
