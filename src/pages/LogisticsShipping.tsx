@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +12,7 @@ import { toast } from 'sonner';
 
 const LogisticsShipping = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [trackingInput, setTrackingInput] = useState('');
+  const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
 
   const { data: processingData, isLoading: processingLoading } = useOrders({ 
@@ -27,10 +28,14 @@ const LogisticsShipping = () => {
     search: searchTerm 
   });
 
-  // Extract orders from data wrapper - fix the property access
+  // Extract orders from data wrapper
   const processingOrders = processingData?.data || [];
   const shippedOrders = shippedData?.data || [];
   const onHoldOrders = onHoldData?.data || [];
+
+  // Filter orders based on tracking status for proper categorization
+  const readyToShipOrders = processingOrders.filter(order => !getTrackingNumber(order));
+  const inTransitOrders = processingOrders.filter(order => getTrackingNumber(order));
 
   const updateOrderMutation = useUpdateOrder();
 
@@ -49,10 +54,9 @@ const LogisticsShipping = () => {
     const tracking = getTrackingNumber(order);
     if (!tracking) return { status: 'No Tracking', color: 'bg-gray-100 text-gray-800' };
     
-    // In a real implementation, you would check with shipping APIs
     if (order.status === 'completed') {
       return { status: 'Delivered', color: 'bg-green-100 text-green-800' };
-    } else if (order.status === 'processing') {
+    } else if (order.status === 'processing' && tracking) {
       return { status: 'In Transit', color: 'bg-blue-100 text-blue-800' };
     } else if (order.status === 'on-hold') {
       return { status: 'Exception', color: 'bg-red-100 text-red-800' };
@@ -61,8 +65,17 @@ const LogisticsShipping = () => {
     return { status: 'Processing', color: 'bg-yellow-100 text-yellow-800' };
   };
 
+  const handleTrackingInputChange = (orderId: number, value: string) => {
+    setTrackingInputs(prev => ({
+      ...prev,
+      [orderId]: value
+    }));
+  };
+
   const handleAddTracking = async (orderId: number) => {
-    if (!trackingInput.trim()) {
+    const trackingNumber = trackingInputs[orderId];
+    
+    if (!trackingNumber?.trim()) {
       toast.error('Please enter a tracking number');
       return;
     }
@@ -74,17 +87,21 @@ const LogisticsShipping = () => {
         data: {
           meta_data: [
             {
-              id: 0, // WooCommerce will assign the actual ID
+              id: 0,
               key: '_tracking_number',
-              value: trackingInput.trim()
+              value: trackingNumber.trim()
             }
           ],
-          status: 'completed' // Mark as shipped when tracking is added
+          status: 'processing' // Keep as processing, will show in In Transit tab
         }
       });
 
       toast.success('Tracking number added successfully');
-      setTrackingInput('');
+      // Clear the specific tracking input
+      setTrackingInputs(prev => ({
+        ...prev,
+        [orderId]: ''
+      }));
       setUpdatingOrderId(null);
     } catch (error) {
       toast.error('Failed to add tracking number');
@@ -169,14 +186,14 @@ const LogisticsShipping = () => {
                       <div className="flex gap-2">
                         <Input
                           placeholder="Tracking number"
-                          value={trackingInput}
-                          onChange={(e) => setTrackingInput(e.target.value)}
+                          value={trackingInputs[order.id] || ''}
+                          onChange={(e) => handleTrackingInputChange(order.id, e.target.value)}
                           className="w-32 text-xs"
                         />
                         <Button 
                           size="sm" 
                           onClick={() => handleAddTracking(order.id)}
-                          disabled={isUpdating || !trackingInput.trim()}
+                          disabled={isUpdating || !trackingInputs[order.id]?.trim()}
                         >
                           {isUpdating ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
@@ -219,11 +236,11 @@ const LogisticsShipping = () => {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="ready-to-ship" className="flex items-center gap-2">
             <Package className="w-4 h-4" />
-            Ready to Ship <Badge variant="secondary">{processingOrders?.length || 0}</Badge>
+            Ready to Ship <Badge variant="secondary">{readyToShipOrders?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="in-transit" className="flex items-center gap-2">
             <Truck className="w-4 h-4" />
-            In Transit <Badge variant="secondary">{shippedOrders?.length || 0}</Badge>
+            In Transit <Badge variant="secondary">{inTransitOrders?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="exceptions" className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
@@ -231,7 +248,7 @@ const LogisticsShipping = () => {
           </TabsTrigger>
           <TabsTrigger value="delivered" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            Delivered
+            Delivered <Badge variant="secondary">{shippedOrders?.length || 0}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -239,11 +256,11 @@ const LogisticsShipping = () => {
           <Card>
             <CardHeader>
               <CardTitle>Ready to Ship</CardTitle>
-              <CardDescription>Orders ready for shipment</CardDescription>
+              <CardDescription>Orders ready for shipment (no tracking assigned)</CardDescription>
             </CardHeader>
             <CardContent>
               <ShipmentTable 
-                orders={processingOrders} 
+                orders={readyToShipOrders} 
                 isLoading={processingLoading} 
                 showAddTracking={true}
               />
@@ -255,10 +272,10 @@ const LogisticsShipping = () => {
           <Card>
             <CardHeader>
               <CardTitle>In Transit</CardTitle>
-              <CardDescription>Orders currently being shipped</CardDescription>
+              <CardDescription>Orders with tracking numbers being shipped</CardDescription>
             </CardHeader>
             <CardContent>
-              <ShipmentTable orders={shippedOrders} isLoading={shippedLoading} />
+              <ShipmentTable orders={inTransitOrders} isLoading={processingLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -282,10 +299,7 @@ const LogisticsShipping = () => {
               <CardDescription>Successfully delivered shipments</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                <p>Delivered orders tracking coming soon</p>
-              </div>
+              <ShipmentTable orders={shippedOrders} isLoading={shippedLoading} />
             </CardContent>
           </Card>
         </TabsContent>

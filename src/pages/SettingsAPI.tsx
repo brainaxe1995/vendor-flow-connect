@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import SettingsTabsList from '@/components/settings/SettingsTabsList';
 import WooCommerceSettings from '@/components/settings/WooCommerceSettings';
@@ -10,7 +10,22 @@ import TrackingSettings from '@/components/settings/TrackingSettings';
 import GeneralSettings from '@/components/settings/GeneralSettings';
 
 const SettingsAPI = () => {
-  const { user } = useAuth();
+  const { user, loading } = useSupabaseAuth();
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <SettingsHeader />
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-muted-foreground">
+              Loading...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

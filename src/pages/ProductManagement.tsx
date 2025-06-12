@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +16,7 @@ import { toast } from 'sonner';
 const ProductManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [productName, setProductName] = useState('');
   const [productPrice, setProductPrice] = useState('');
   const [productStock, setProductStock] = useState('');
@@ -53,6 +55,15 @@ const ProductManagement = () => {
     return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' };
   };
 
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setProductName(product.name);
+    setProductPrice(product.regular_price);
+    setProductStock(product.stock_quantity?.toString() || '0');
+    setProductSku(product.sku || '');
+    setIsEditDialogOpen(true);
+  };
+
   const handleUpdateProduct = async () => {
     if (!editingProduct) return;
 
@@ -70,12 +81,22 @@ const ProductManagement = () => {
       });
 
       toast.success('Product updated successfully');
+      setIsEditDialogOpen(false);
       setEditingProduct(null);
       refetchActive();
     } catch (error) {
       toast.error('Failed to update product');
       console.error('Update product error:', error);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditDialogOpen(false);
+    setEditingProduct(null);
+    setProductName('');
+    setProductPrice('');
+    setProductStock('');
+    setProductSku('');
   };
 
   const handleRefreshClick = () => {
@@ -152,90 +173,13 @@ const ProductManagement = () => {
                     <Button variant="outline" size="sm">
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setEditingProduct(product);
-                            setProductName(product.name);
-                            setProductPrice(product.regular_price);
-                            setProductStock(product.stock_quantity?.toString() || '0');
-                            setProductSku(product.sku || '');
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Edit Product: {product.name}</DialogTitle>
-                          <DialogDescription>
-                            Update product information and inventory
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="productName">Product Name</Label>
-                              <Input 
-                                id="productName" 
-                                value={productName}
-                                onChange={(e) => setProductName(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="sku">SKU</Label>
-                              <Input 
-                                id="sku" 
-                                value={productSku}
-                                onChange={(e) => setProductSku(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="price">Price ($)</Label>
-                              <Input 
-                                id="price" 
-                                type="number" 
-                                step="0.01" 
-                                value={productPrice}
-                                onChange={(e) => setProductPrice(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="stock">Stock Level</Label>
-                              <Input 
-                                id="stock" 
-                                type="number" 
-                                value={productStock}
-                                onChange={(e) => setProductStock(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setEditingProduct(null)}>
-                              Cancel
-                            </Button>
-                            <Button 
-                              onClick={handleUpdateProduct}
-                              disabled={updateProductMutation.isPending}
-                            >
-                              {updateProductMutation.isPending ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Saving...
-                                </>
-                              ) : (
-                                'Save Changes'
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditProduct(product)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -316,6 +260,77 @@ const ProductManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Product: {editingProduct?.name}</DialogTitle>
+            <DialogDescription>
+              Update product information and inventory
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="productName">Product Name</Label>
+                <Input 
+                  id="productName" 
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="sku">SKU</Label>
+                <Input 
+                  id="sku" 
+                  value={productSku}
+                  onChange={(e) => setProductSku(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="price">Price ($)</Label>
+                <Input 
+                  id="price" 
+                  type="number" 
+                  step="0.01" 
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="stock">Stock Level</Label>
+                <Input 
+                  id="stock" 
+                  type="number" 
+                  value={productStock}
+                  onChange={(e) => setProductStock(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateProduct}
+                disabled={updateProductMutation.isPending}
+              >
+                {updateProductMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

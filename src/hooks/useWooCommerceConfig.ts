@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
 import { useSupabaseConfig } from './useSupabaseConfig';
-import { useSupabaseAuth } from './useSupabaseAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Helper for deep equality check to prevent redundant config updates
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -25,7 +25,7 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
 };
 
 export const useWooCommerceConfig = () => {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const { config: supabaseConfig, saveWooCommerceConfig: saveToSupabase, loadWooCommerceConfig } = useSupabaseConfig();
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -40,24 +40,10 @@ export const useWooCommerceConfig = () => {
         console.log('WooCommerce config loaded from Supabase');
       }
     } else if (!user) {
-      // Fallback to localStorage for non-authenticated users
-      const savedConfig = localStorage.getItem('woocommerce_config');
-      if (savedConfig) {
-        try {
-          const parsedConfig = JSON.parse(savedConfig);
-          if (parsedConfig.storeUrl && parsedConfig.consumerKey && parsedConfig.consumerSecret) {
-            if (!deepEqual(config, parsedConfig)) {
-              setConfig(parsedConfig);
-              wooCommerceService.setConfig(parsedConfig);
-              setIsConfigured(parsedConfig.status === 'active');
-              console.log('WooCommerce config loaded from localStorage (fallback)');
-            }
-          }
-        } catch (error) {
-          console.error('Failed to parse saved config:', error);
-          localStorage.removeItem('woocommerce_config');
-        }
-      }
+      // Clear config when user logs out
+      setConfig(null);
+      setIsConfigured(false);
+      console.log('User logged out, clearing WooCommerce config');
     }
   }, [user, supabaseConfig]);
 
@@ -86,14 +72,12 @@ export const useWooCommerceConfig = () => {
       if (user) {
         // Save to Supabase if user is authenticated
         await saveToSupabase(updatedConfig);
+        setConfig(updatedConfig);
+        setIsConfigured(isConnected);
+        console.log('WooCommerce config saved to Supabase successfully');
       } else {
-        // Fallback to localStorage
-        localStorage.setItem('woocommerce_config', JSON.stringify(updatedConfig));
+        throw new Error('User must be logged in to save configuration');
       }
-      
-      setConfig(updatedConfig);
-      setIsConfigured(isConnected);
-      console.log('WooCommerce config updated successfully');
       
       return isConnected;
     } catch (error) {

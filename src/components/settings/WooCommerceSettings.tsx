@@ -11,12 +11,14 @@ import { useWooCommerceConfig } from '@/hooks/useWooCommerceConfig';
 import { wooCommerceService } from '@/services/woocommerce';
 import { WooCommerceConfig } from '@/types/woocommerce';
 import { toast } from 'sonner';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 interface WooCommerceSettingsProps {
   user: any;
 }
 
-const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
+const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user: contextUser }) => {
+  const { user: supabaseUser } = useSupabaseAuth();
   const { config, saveConfig } = useWooCommerceConfig();
   const [showWooKeys, setShowWooKeys] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -33,6 +35,9 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
     lastUsed: '',
     lastSync: ''
   });
+
+  // Use Supabase user if available, otherwise fall back to context user
+  const currentUser = supabaseUser || contextUser;
 
   useEffect(() => {
     if (config) {
@@ -124,7 +129,7 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
   };
 
   const handleSaveWooConfig = async () => {
-    if (!user) {
+    if (!currentUser) {
       toast.error('Please log in to save configuration');
       return;
     }
@@ -188,7 +193,7 @@ const WooCommerceSettings: React.FC<WooCommerceSettingsProps> = ({ user }) => {
           {getConnectionIcon()}
         </CardTitle>
         <CardDescription>
-          Configure your WooCommerce store connection settings. These credentials are stored securely and used for all API communications.
+          Configure your WooCommerce store connection settings. These credentials are stored securely in your database and used for all API communications.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

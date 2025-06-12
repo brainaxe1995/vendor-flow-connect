@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [newStock, setNewStock] = useState('');
 
   const { data: productsResponse, isLoading, refetch } = useProducts({ search: searchTerm });
@@ -35,6 +36,12 @@ const InventoryManagement = () => {
     return { label: 'In Stock', color: 'bg-green-100 text-green-800', icon: '🟢' };
   };
 
+  const handleEditStock = (product: any) => {
+    setEditingProduct(product);
+    setNewStock(product.stock_quantity?.toString() || '0');
+    setIsStockDialogOpen(true);
+  };
+
   const handleUpdateStock = async () => {
     if (!editingProduct || !newStock) return;
 
@@ -49,6 +56,7 @@ const InventoryManagement = () => {
       });
 
       toast.success('Stock updated successfully');
+      setIsStockDialogOpen(false);
       setEditingProduct(null);
       setNewStock('');
       refetch();
@@ -56,6 +64,12 @@ const InventoryManagement = () => {
       toast.error('Failed to update stock');
       console.error('Update stock error:', error);
     }
+  };
+
+  const handleCancelStockEdit = () => {
+    setIsStockDialogOpen(false);
+    setEditingProduct(null);
+    setNewStock('');
   };
 
   if (isLoading) {
@@ -196,58 +210,13 @@ const InventoryManagement = () => {
                     </TableCell>
                     <TableCell>${product.price || product.regular_price}</TableCell>
                     <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setNewStock(product.stock_quantity?.toString() || '0');
-                            }}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Update Stock: {product.name}</DialogTitle>
-                            <DialogDescription>
-                              Adjust inventory levels for this product
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div>
-                              <Label htmlFor="stock">New Stock Quantity</Label>
-                              <Input 
-                                id="stock" 
-                                type="number" 
-                                value={newStock}
-                                onChange={(e) => setNewStock(e.target.value)}
-                                placeholder="Enter stock quantity"
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button variant="outline" onClick={() => setEditingProduct(null)}>
-                                Cancel
-                              </Button>
-                              <Button 
-                                onClick={handleUpdateStock}
-                                disabled={updateProductMutation.isPending}
-                              >
-                                {updateProductMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Updating...
-                                  </>
-                                ) : (
-                                  'Update Stock'
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditStock(product)}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -256,6 +225,48 @@ const InventoryManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Update Stock Dialog */}
+      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Stock: {editingProduct?.name}</DialogTitle>
+            <DialogDescription>
+              Adjust inventory levels for this product
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="stock">New Stock Quantity</Label>
+              <Input 
+                id="stock" 
+                type="number" 
+                value={newStock}
+                onChange={(e) => setNewStock(e.target.value)}
+                placeholder="Enter stock quantity"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCancelStockEdit}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateStock}
+                disabled={updateProductMutation.isPending}
+              >
+                {updateProductMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Stock'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
