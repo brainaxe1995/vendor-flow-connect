@@ -1,4 +1,3 @@
-
 import { BaseWooCommerceService } from './base';
 import { WooCommerceProduct, WooCommerceCategory, WooCommerceResponse } from './types';
 
@@ -51,9 +50,37 @@ export class WooCommerceProductsService extends BaseWooCommerceService {
     // Create a safe copy of the data to send
     const safeData = { ...data };
     
-    // If SKU is empty or just whitespace, remove it from the update payload
-    if (safeData.sku !== undefined && (!safeData.sku || safeData.sku.trim() === '')) {
-      delete safeData.sku;
+    // Handle SKU updates more carefully
+    if (safeData.sku !== undefined) {
+      if (!safeData.sku || safeData.sku.trim() === '') {
+        // If SKU is empty, remove it from the update payload
+        delete safeData.sku;
+      } else {
+        // Check if we're trying to update with the same SKU
+        try {
+          const currentProduct = await this.getProduct(productId);
+          if (currentProduct.sku === safeData.sku) {
+            // Same SKU, remove it from update to avoid conflict
+            delete safeData.sku;
+            console.log('SKU unchanged, removing from update payload');
+          }
+        } catch (error) {
+          console.warn('Could not fetch current product for SKU comparison:', error);
+        }
+      }
+    }
+
+    // Ensure price is properly formatted
+    if (safeData.regular_price !== undefined) {
+      safeData.regular_price = String(safeData.regular_price);
+    }
+    if (safeData.price !== undefined) {
+      safeData.price = String(safeData.price);
+    }
+
+    // Ensure stock quantity is a number
+    if (safeData.stock_quantity !== undefined) {
+      safeData.stock_quantity = parseInt(String(safeData.stock_quantity), 10);
     }
     
     try {
@@ -61,7 +88,9 @@ export class WooCommerceProductsService extends BaseWooCommerceService {
         method: 'PUT',
         body: JSON.stringify(safeData),
       });
-      return response.json();
+      const result = await response.json();
+      console.log('Product updated successfully:', result);
+      return result;
     } catch (error) {
       console.error('Update product error:', error);
       throw error;

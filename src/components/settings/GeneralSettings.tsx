@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GeneralSettingsProps {
   user: any;
@@ -17,13 +18,46 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ user }) => {
   const [phone, setPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      // Load user profile data (this would be expanded to fetch from Supabase profiles table)
-      setContactEmail(user.email || '');
-      setFullName(user.user_metadata?.full_name || '');
-    }
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        // Fetch user profile from Supabase
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching profile:', error);
+          toast.error('Failed to load profile');
+          return;
+        }
+
+        if (profile) {
+          setFullName(profile.full_name || '');
+          setContactEmail(profile.email || '');
+          setCompanyName(profile.company_name || '');
+          setPhone(profile.phone || '');
+        } else {
+          // Fallback to user metadata if no profile exists
+          setContactEmail(user.email || '');
+          setFullName(user.user_metadata?.full_name || '');
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        toast.error('Failed to load profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
   }, [user]);
 
   const handleUpdateProfile = async () => {
@@ -34,8 +68,24 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ user }) => {
 
     setIsUpdatingProfile(true);
     try {
-      // This would update the profiles table in Supabase
-      // For now, we'll just show a success message
+      // Update the profiles table in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: contactEmail,
+          full_name: fullName,
+          company_name: companyName,
+          phone: phone,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Profile update error:', error);
+        toast.error('Failed to update profile');
+        return;
+      }
+
       toast.success('Profile updated successfully');
     } catch (error) {
       toast.error('Failed to update profile');
@@ -44,6 +94,19 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ user }) => {
       setIsUpdatingProfile(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Loading profile...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
