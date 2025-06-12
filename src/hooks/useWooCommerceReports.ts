@@ -15,6 +15,18 @@ const validatePerPage = (perPage?: number): number => {
   return Math.min(Math.max(perPage, 1), 100);
 };
 
+// Helper to create date objects for last 30 days
+const getLastThirtyDaysRange = () => {
+  const now = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+  
+  return {
+    date_min: thirtyDaysAgo.toISOString().split('T')[0], // YYYY-MM-DD
+    date_max: now.toISOString().split('T')[0] // YYYY-MM-DD
+  };
+};
+
 // Reports hooks
 export const useSalesReport = (params?: {
   period?: string;
@@ -24,9 +36,14 @@ export const useSalesReport = (params?: {
 }) => {
   const { isConfigured } = useWooCommerceConfig();
   
+  // Use last 30 days by default if no dates are provided
+  const dateParams = params?.date_min && params?.date_max ? 
+    params : 
+    { ...params, ...getLastThirtyDaysRange() };
+  
   return useQuery({
-    queryKey: ['sales-report', params],
-    queryFn: () => wooCommerceService.getSalesReport(params),
+    queryKey: ['sales-report', dateParams],
+    queryFn: () => wooCommerceService.getSalesReport(dateParams),
     enabled: isConfigured,
     staleTime: 5 * 60 * 1000,
   });
@@ -40,14 +57,20 @@ export const useTopSellers = (params?: {
 }) => {
   const { isConfigured } = useWooCommerceConfig();
   
+  // Use last 30 days by default if no dates are provided
+  const dateParams = params?.date_min && params?.date_max ? 
+    params : 
+    { ...params, ...getLastThirtyDaysRange() };
+  
   return useQuery({
-    queryKey: ['top-sellers', params],
+    queryKey: ['top-sellers', dateParams],
     queryFn: () => wooCommerceService.getTopSellersReport({
-      ...params,
+      ...dateParams,
       per_page: validatePerPage(params?.per_page)
     }),
     enabled: isConfigured,
     staleTime: 10 * 60 * 1000,
+    retry: 1,
   });
 };
 
@@ -92,24 +115,47 @@ export const useCategorySales = (dateRange?: { date_min?: string; date_max?: str
   let categorySales: any[] = [];
   
   if (Array.isArray(categories) && Array.isArray(orders)) {
-    categorySales = categories.map(category => {
-      const categoryOrders = orders.filter(order => 
-        order.line_items && Array.isArray(order.line_items) && 
-        order.line_items.some(item => 
-          item.product_id && categories.find(cat => cat.id === category.id)
-        )
-      );
-      
-      const totalSales = categoryOrders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0);
-      const orderCount = categoryOrders.length;
-
-      return {
+    // Make sure categories are defined before filtering
+    const categoryMap = new Map();
+    
+    // Create a map for faster lookups
+    categories.forEach(category => {
+      categoryMap.set(category.id, {
+        id: category.id,
         name: category.name,
-        value: orderCount,
-        sales: totalSales,
-        label: `${category.name} (${orderCount} orders)`
-      };
-    }).filter(item => item.value > 0);
+        orderCount: 0,
+        totalSales: 0
+      });
+    });
+    
+    // Process orders safely
+    orders.forEach(order => {
+      if (order.line_items && Array.isArray(order.line_items)) {
+        order.line_items.forEach(item => {
+          if (item.product_id) {
+            // Find categories for this product
+            const productCategories = item.categories || [];
+            productCategories.forEach(catId => {
+              const category = categoryMap.get(catId);
+              if (category) {
+                category.orderCount++;
+                category.totalSales += parseFloat(item.total || '0');
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    // Convert map back to array for return
+    categorySales = Array.from(categoryMap.values())
+      .map(cat => ({
+        name: cat.name,
+        value: cat.orderCount,
+        sales: cat.totalSales,
+        label: `${cat.name} (${cat.orderCount} orders)`
+      }))
+      .filter(item => item.value > 0);
   }
 
   return { data: categorySales, isLoading };

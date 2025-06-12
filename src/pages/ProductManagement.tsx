@@ -26,11 +26,11 @@ const ProductManagement = () => {
     status: 'publish', 
     search: searchTerm 
   });
-  const { data: outOfStockResponse, isLoading: outOfStockLoading } = useProducts({ 
+  const { data: outOfStockResponse, isLoading: outOfStockLoading, refetch: refetchOutOfStock } = useProducts({ 
     stock_status: 'outofstock',
     search: searchTerm 
   });
-  const { data: draftProductsResponse, isLoading: draftLoading } = useProducts({ 
+  const { data: draftProductsResponse, isLoading: draftLoading, refetch: refetchDrafts } = useProducts({ 
     status: 'draft',
     search: searchTerm 
   });
@@ -73,7 +73,11 @@ const ProductManagement = () => {
       if (productName !== editingProduct.name) updateData.name = productName;
       if (productPrice !== editingProduct.regular_price) updateData.regular_price = productPrice;
       if (productStock !== editingProduct.stock_quantity?.toString()) updateData.stock_quantity = parseInt(productStock);
-      if (productSku !== editingProduct.sku) updateData.sku = productSku;
+      
+      // Only include SKU if it's actually changed and not empty
+      if (productSku !== editingProduct.sku && productSku.trim() !== '') {
+        updateData.sku = productSku;
+      }
 
       await updateProductMutation.mutateAsync({
         productId: editingProduct.id,
@@ -84,9 +88,12 @@ const ProductManagement = () => {
       setIsEditDialogOpen(false);
       setEditingProduct(null);
       refetchActive();
-    } catch (error) {
-      toast.error('Failed to update product');
+      refetchOutOfStock();
+      refetchDrafts();
+    } catch (error: any) {
       console.error('Update product error:', error);
+      const errorMessage = error?.message || 'Failed to update product';
+      toast.error(errorMessage);
     }
   };
 
@@ -101,9 +108,12 @@ const ProductManagement = () => {
 
   const handleRefreshClick = () => {
     refetchActive();
+    refetchOutOfStock();
+    refetchDrafts();
   };
 
-  const ProductTable = ({ products, isLoading }: { products: any[], isLoading: boolean }) => {
+  // Ensure a component is defined before rendering
+  const ProductTable = ({ products = [], isLoading = false }: { products: any[], isLoading: boolean }) => {
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -214,13 +224,13 @@ const ProductManagement = () => {
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="active" className="flex items-center gap-2">
-            Active <Badge variant="secondary">{activeProducts.length}</Badge>
+            Active <Badge variant="secondary">{activeProducts?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="outOfStock" className="flex items-center gap-2">
-            Out of Stock <Badge variant="destructive">{outOfStockProducts.length}</Badge>
+            Out of Stock <Badge variant="destructive">{outOfStockProducts?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="draft" className="flex items-center gap-2">
-            Draft <Badge variant="secondary">{draftProducts.length}</Badge>
+            Draft <Badge variant="secondary">{draftProducts?.length || 0}</Badge>
           </TabsTrigger>
         </TabsList>
 

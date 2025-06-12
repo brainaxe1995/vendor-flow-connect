@@ -47,11 +47,25 @@ export class WooCommerceProductsService extends BaseWooCommerceService {
 
   async updateProduct(productId: number, data: Partial<WooCommerceProduct>): Promise<WooCommerceProduct> {
     console.log('Updating product:', productId, data);
-    const response = await this.makeRequest(`/products/${productId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-    return response.json();
+    
+    // Create a safe copy of the data to send
+    const safeData = { ...data };
+    
+    // If SKU is empty or just whitespace, remove it from the update payload
+    if (safeData.sku !== undefined && (!safeData.sku || safeData.sku.trim() === '')) {
+      delete safeData.sku;
+    }
+    
+    try {
+      const response = await this.makeRequest(`/products/${productId}`, {
+        method: 'PUT',
+        body: JSON.stringify(safeData),
+      });
+      return response.json();
+    } catch (error) {
+      console.error('Update product error:', error);
+      throw error;
+    }
   }
 
   async getCategories(params: {

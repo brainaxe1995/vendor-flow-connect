@@ -13,7 +13,15 @@ const Dashboard = () => {
   const { data: orderStats, isLoading: orderStatsLoading, error: orderStatsError } = useOrderStats();
   const { data: productStats, isLoading: productStatsLoading, error: productStatsError } = useProductStats();
   const { data: notifications } = useNotifications();
-  const { data: topSellers, isLoading: topSellersLoading } = useTopSellers();
+  
+  // Get top sellers for the last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const { data: topSellers = [], isLoading: topSellersLoading } = useTopSellers({
+    per_page: 5
+    // Using default date range from the hook
+  });
 
   useEffect(() => {
     if (!isConfigured) {
@@ -23,7 +31,7 @@ const Dashboard = () => {
     }
   }, [isConfigured, orderStatsError, productStatsError]);
 
-  const recentNotifications = notifications.slice(0, 3);
+  const recentNotifications = (notifications || []).slice(0, 3);
 
   if (!isConfigured) {
     return (
@@ -171,18 +179,18 @@ const Dashboard = () => {
                 </div>
               ) : topSellers && topSellers.length > 0 ? (
                 topSellers.slice(0, 5).map((product, index) => (
-                  <div key={product.product_id} className="flex items-center justify-between">
+                  <div key={`${product.product_id}-${index}`} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
                         {index + 1}
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{product.product_name}</p>
-                        <p className="text-xs text-muted-foreground">{product.quantity} sold</p>
+                        <p className="font-medium text-sm">{product.product_name || 'Unknown Product'}</p>
+                        <p className="text-xs text-muted-foreground">{product.quantity || 0} sold</p>
                       </div>
                     </div>
                     <Badge variant="secondary">
-                      ${product.product_price}
+                      ${product.product_price || '0.00'}
                     </Badge>
                   </div>
                 ))
