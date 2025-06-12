@@ -1,6 +1,8 @@
 
 import { WooCommerceConfig } from '../../types/woocommerce';
 
+const PROXY_URL = import.meta.env.VITE_WOOCOMMERCE_PROXY_URL || '';
+
 export abstract class BaseWooCommerceService {
   protected config: WooCommerceConfig | null = null;
 
@@ -32,12 +34,34 @@ export abstract class BaseWooCommerceService {
       throw new Error('Store URL not configured');
     }
 
-    const url = `${this.config.storeUrl.replace(/\/$/, '')}/wp-json/wc/v3${endpoint}`;
-    
-    console.log('Making API request to:', url);
-    
+    const directUrl = `${this.config.storeUrl.replace(/\/$/, '')}/wp-json/wc/v3${endpoint}`;
+
+    console.log('Making API request to:', PROXY_URL || directUrl);
+
     try {
-      const response = await fetch(url, {
+      if (PROXY_URL) {
+        const proxyResponse = await fetch(PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeUrl: this.config.storeUrl,
+            consumerKey: this.config.consumerKey,
+            consumerSecret: this.config.consumerSecret,
+            endpoint,
+            method: options.method || 'GET',
+            body: options.body ? JSON.parse(options.body as string) : undefined,
+          }),
+        });
+
+        if (!proxyResponse.ok) {
+          const errorText = await proxyResponse.text();
+          throw new Error(`API Error: ${proxyResponse.status} ${proxyResponse.statusText} - ${errorText}`);
+        }
+
+        return proxyResponse;
+      }
+
+      const response = await fetch(directUrl, {
         ...options,
         headers: {
           'Authorization': `Basic ${this.getAuthString()}`,
@@ -51,8 +75,8 @@ export abstract class BaseWooCommerceService {
         console.error('API Error Response:', {
           status: response.status,
           statusText: response.statusText,
-          url,
-          errorText
+          url: directUrl,
+          errorText,
         });
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
@@ -60,9 +84,9 @@ export abstract class BaseWooCommerceService {
       return response;
     } catch (error) {
       console.error('WooCommerce API request failed:', {
-        url,
-        error: error.message,
-        stack: error.stack
+        url: PROXY_URL || directUrl,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       });
       throw error;
     }
