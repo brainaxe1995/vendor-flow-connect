@@ -28,7 +28,11 @@ export const useOrderStats = (dateRange?: { date_min?: string; date_max?: string
       });
 
       const allOrders = await wooCommerceService.getOrders({ per_page: 1, after: dateRange?.date_min, before: dateRange?.date_max });
-      const sales = await wooCommerceService.getSalesReport({ period: 'all' });
+      const allTimeRange = {
+        date_min: '2000-01-01',
+        date_max: new Date().toISOString().split('T')[0],
+      };
+      const sales = await wooCommerceService.getSalesReport(allTimeRange);
 
       return {
         pending: counts['pending'] || 0,
