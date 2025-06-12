@@ -188,3 +188,7 @@ For technical issues:
 6. Test all integrations thoroughly
 
 This portal is production-ready and fully integrated with WooCommerce. All features use real data and sync bidirectionally with your store.
+
+### Vercel Deployment
+This project uses client-side routing with React Router. Deployments on Vercel require a `vercel.json` rewrite so any internal route falls back to `index.html`.
+
