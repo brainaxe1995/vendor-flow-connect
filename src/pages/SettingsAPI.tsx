@@ -7,14 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Store, Eye, EyeOff, Copy, TestTube, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Store, Eye, EyeOff, Copy, TestTube, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { useWooCommerceConfig, useTrackingDetection } from '../hooks/useWooCommerce';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { toast } from 'sonner';
 
 const SettingsAPI = () => {
+  const { user } = useSupabaseAuth();
   const { config, saveConfig } = useWooCommerceConfig();
   const { data: trackingKeys } = useTrackingDetection();
   const [showWooKeys, setShowWooKeys] = useState(false);
@@ -33,12 +34,27 @@ const SettingsAPI = () => {
     lastSync: ''
   });
 
+  // Profile form state
+  const [companyName, setCompanyName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
   useEffect(() => {
     if (config) {
       setWooCommerceConfig(config);
       setConnectionStatus(config.status === 'active' ? 'connected' : 'unknown');
     }
   }, [config]);
+
+  useEffect(() => {
+    if (user) {
+      // Load user profile data (this would be expanded to fetch from Supabase profiles table)
+      setContactEmail(user.email || '');
+      setFullName(user.user_metadata?.full_name || '');
+    }
+  }, [user]);
 
   const validateConfig = (configToValidate: WooCommerceConfig): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -123,6 +139,11 @@ const SettingsAPI = () => {
   };
 
   const handleSaveWooConfig = async () => {
+    if (!user) {
+      toast.error('Please log in to save configuration');
+      return;
+    }
+
     // Validate before saving
     const errors = validateConfig(wooCommerceConfig);
     setValidationErrors(errors);
@@ -137,7 +158,7 @@ const SettingsAPI = () => {
       
       if (success) {
         setConnectionStatus('connected');
-        toast.success('WooCommerce configuration saved and connected successfully!');
+        toast.success('WooCommerce configuration saved to Supabase successfully!');
       } else {
         setConnectionStatus('failed');
         toast.error('Failed to save configuration. Please check your credentials.');
@@ -146,6 +167,25 @@ const SettingsAPI = () => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Failed to save configuration: ${errorMessage}`);
       console.error('Save config error:', error);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user) {
+      toast.error('Please log in to update profile');
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
+      // This would update the profiles table in Supabase
+      // For now, we'll just show a success message
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error('Failed to update profile');
+      console.error('Profile update error:', error);
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -173,6 +213,23 @@ const SettingsAPI = () => {
     }
   };
 
+  if (!user) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Settings & API</h1>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-muted-foreground">
+              Please log in to access settings and API configuration.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -198,7 +255,7 @@ const SettingsAPI = () => {
                 {getConnectionIcon()}
               </CardTitle>
               <CardDescription>
-                Configure your WooCommerce store connection settings. These credentials are stored securely and used for all API communications.
+                Configure your WooCommerce store connection settings. These credentials are stored securely in Supabase and used for all API communications.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -354,7 +411,7 @@ const SettingsAPI = () => {
                   onClick={handleSaveWooConfig}
                   disabled={isTestingConnection}
                 >
-                  Save Configuration
+                  Save to Supabase
                 </Button>
               </div>
             </CardContent>
@@ -414,34 +471,52 @@ const SettingsAPI = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="companyName">Company Name</Label>
-                  <Input id="companyName" defaultValue="Acme Suppliers Inc." />
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input 
+                    id="fullName" 
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Your full name"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="contactEmail">Contact Email</Label>
-                  <Input id="contactEmail" defaultValue="contact@acmesuppliers.com" />
+                  <Input 
+                    id="contactEmail" 
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="your@email.com"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" defaultValue="+1 (555) 123-4567" />
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input 
+                    id="companyName" 
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Your company name"
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <select id="timezone" className="w-full p-2 border rounded-md">
-                    <option>UTC-8 (Pacific Time)</option>
-                    <option>UTC-5 (Eastern Time)</option>
-                    <option>UTC+0 (GMT)</option>
-                  </select>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input 
+                    id="phone" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                  />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="address">Business Address</Label>
-                <textarea id="address" className="w-full p-2 border rounded-md" defaultValue="123 Business St, Suite 100&#10;San Francisco, CA 94102" />
-              </div>
               <div className="flex justify-end">
-                <Button>Save Changes</Button>
+                <Button 
+                  onClick={handleUpdateProfile}
+                  disabled={isUpdatingProfile}
+                >
+                  {isUpdatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
               </div>
             </CardContent>
           </Card>

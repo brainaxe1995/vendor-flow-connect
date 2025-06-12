@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { wooCommerceService } from '../services/woocommerce';
 import { WooCommerceConfig } from '../types/woocommerce';
+import { useSupabaseConfig } from './useSupabaseConfig';
+import { useSupabaseAuth } from './useSupabaseAuth';
 
 // Helper for deep equality check to prevent redundant config updates
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -23,32 +25,41 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
 };
 
 export const useWooCommerceConfig = () => {
+  const { user } = useSupabaseAuth();
+  const { config: supabaseConfig, saveWooCommerceConfig: saveToSupabase, loadWooCommerceConfig } = useSupabaseConfig();
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
 
   useEffect(() => {
-    const savedConfig = localStorage.getItem('woocommerce_config');
-    if (savedConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedConfig);
-        if (parsedConfig.storeUrl && parsedConfig.consumerKey && parsedConfig.consumerSecret) {
-          // Only update if config actually changed
-          if (!deepEqual(config, parsedConfig)) {
-            setConfig(parsedConfig);
-            wooCommerceService.setConfig(parsedConfig);
-            setIsConfigured(parsedConfig.status === 'active');
-            console.log('WooCommerce config loaded from storage');
+    if (user && supabaseConfig) {
+      // Only update if config actually changed
+      if (!deepEqual(config, supabaseConfig)) {
+        setConfig(supabaseConfig);
+        wooCommerceService.setConfig(supabaseConfig);
+        setIsConfigured(supabaseConfig.status === 'active');
+        console.log('WooCommerce config loaded from Supabase');
+      }
+    } else if (!user) {
+      // Fallback to localStorage for non-authenticated users
+      const savedConfig = localStorage.getItem('woocommerce_config');
+      if (savedConfig) {
+        try {
+          const parsedConfig = JSON.parse(savedConfig);
+          if (parsedConfig.storeUrl && parsedConfig.consumerKey && parsedConfig.consumerSecret) {
+            if (!deepEqual(config, parsedConfig)) {
+              setConfig(parsedConfig);
+              wooCommerceService.setConfig(parsedConfig);
+              setIsConfigured(parsedConfig.status === 'active');
+              console.log('WooCommerce config loaded from localStorage (fallback)');
+            }
           }
-        } else {
-          console.warn('Invalid WooCommerce config found, clearing...');
+        } catch (error) {
+          console.error('Failed to parse saved config:', error);
           localStorage.removeItem('woocommerce_config');
         }
-      } catch (error) {
-        console.error('Failed to parse saved config:', error);
-        localStorage.removeItem('woocommerce_config');
       }
     }
-  }, []); // Empty dependency array to prevent loops
+  }, [user, supabaseConfig]);
 
   const saveConfig = async (newConfig: WooCommerceConfig) => {
     try {
@@ -72,8 +83,15 @@ export const useWooCommerceConfig = () => {
         lastSync: isConnected ? new Date().toISOString() : ''
       };
       
+      if (user) {
+        // Save to Supabase if user is authenticated
+        await saveToSupabase(updatedConfig);
+      } else {
+        // Fallback to localStorage
+        localStorage.setItem('woocommerce_config', JSON.stringify(updatedConfig));
+      }
+      
       setConfig(updatedConfig);
-      localStorage.setItem('woocommerce_config', JSON.stringify(updatedConfig));
       setIsConfigured(isConnected);
       console.log('WooCommerce config updated successfully');
       
