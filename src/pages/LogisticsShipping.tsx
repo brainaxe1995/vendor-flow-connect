@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 const LogisticsShipping = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 50;
   const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [selectedOrderTracking, setSelectedOrderTracking] = useState<{orderId: number, trackingNumber: string} | null>(null);
@@ -17,18 +19,30 @@ const LogisticsShipping = () => {
   // Get tracking keys for dynamic key detection
   const { data: trackingKeys } = useTrackingDetection();
 
-  const { data: processingData, isLoading: processingLoading } = useOrders({ 
+  const { data: processingData, isLoading: processingLoading } = useOrders({
     status: 'processing',
-    search: searchTerm 
+    search: searchTerm,
+    per_page: perPage,
+    page: currentPage,
   });
-  const { data: shippedData, isLoading: shippedLoading } = useOrders({ 
+  const { data: shippedData, isLoading: shippedLoading } = useOrders({
     status: 'completed',
-    search: searchTerm 
+    search: searchTerm,
+    per_page: perPage,
+    page: currentPage,
   });
-  const { data: onHoldData, isLoading: onHoldLoading } = useOrders({ 
+  const { data: onHoldData, isLoading: onHoldLoading } = useOrders({
     status: 'on-hold',
-    search: searchTerm 
+    search: searchTerm,
+    per_page: perPage,
+    page: currentPage,
   });
+
+  const queries = {
+    processing: processingData,
+    shipped: shippedData,
+    onHold: onHoldData,
+  };
 
   // Extract orders from data wrapper
   const processingOrders = processingData?.data || [];
@@ -137,6 +151,11 @@ const LogisticsShipping = () => {
         onAddTracking={handleAddTracking}
         onViewTracking={handleViewTracking}
         getShipmentStatus={getShipmentStatus}
+        processingTotalPages={processingData?.totalPages || 1}
+        shippedTotalPages={shippedData?.totalPages || 1}
+        onHoldTotalPages={onHoldData?.totalPages || 1}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
       />
 
       {/* Enhanced Tracking Dialog */}
