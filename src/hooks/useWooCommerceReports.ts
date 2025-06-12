@@ -7,7 +7,7 @@ import {
 } from '../services/woocommerce';
 import { useWooCommerceConfig } from './useWooCommerceConfig';
 import { useOrders } from './useWooCommerceOrders';
-import { useCategories } from './useWooCommerceProducts';
+import { useCategories, useProducts } from './useWooCommerceProducts';
 
 // Helper to ensure per_page is within valid limits
 const validatePerPage = (perPage?: number): number => {
@@ -101,24 +101,26 @@ export const useExportData = () => {
 // Category sales data
 export const useCategorySales = (dateRange?: { date_min?: string; date_max?: string }) => {
   const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
+  const { data: productsResponse, isLoading: productsLoading } = useProducts({ per_page: 100 });
   const { data: ordersResponse, isLoading: ordersLoading } = useOrders({
-    per_page: 100, // Fixed: Use valid per_page limit
+    per_page: 100,
     after: dateRange?.date_min,
     before: dateRange?.date_max
   });
 
-  // Fixed: Add proper guards and initialization
   const categories = categoriesResponse?.data || [];
+  const products = productsResponse?.data || [];
   const orders = ordersResponse?.data || [];
-  const isLoading = categoriesLoading || ordersLoading;
+  const isLoading = categoriesLoading || ordersLoading || productsLoading;
 
   let categorySales: any[] = [];
   
-  if (Array.isArray(categories) && Array.isArray(orders)) {
-    // Make sure categories are defined before filtering
-    const categoryMap = new Map();
-    
+  if (Array.isArray(categories) && Array.isArray(orders) && Array.isArray(products)) {
     // Create a map for faster lookups
+    const categoryMap = new Map();
+    const productMap = new Map();
+    
+    // Initialize category map
     categories.forEach(category => {
       categoryMap.set(category.id, {
         id: category.id,
@@ -128,14 +130,21 @@ export const useCategorySales = (dateRange?: { date_min?: string; date_max?: str
       });
     });
     
+    // Create product to categories mapping
+    products.forEach(product => {
+      if (product.categories && Array.isArray(product.categories)) {
+        productMap.set(product.id, product.categories.map(cat => cat.id));
+      }
+    });
+    
     // Process orders safely
     orders.forEach(order => {
       if (order.line_items && Array.isArray(order.line_items)) {
         order.line_items.forEach(item => {
           if (item.product_id) {
-            // Find categories for this product
-            const productCategories = item.categories || [];
-            productCategories.forEach(catId => {
+            // Get categories for this product
+            const productCategories = productMap.get(item.product_id) || [];
+            productCategories.forEach((catId: number) => {
               const category = categoryMap.get(catId);
               if (category) {
                 category.orderCount++;
