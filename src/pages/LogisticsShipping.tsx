@@ -28,7 +28,7 @@ const LogisticsShipping = () => {
     page: currentPage,
   });
   const { data: shippedData, isLoading: shippedLoading } = useOrders({
-    status: 'completed',
+    status: 'completed,delivered,shipped',
     search: searchTerm,
     per_page: perPage,
     page: currentPage,
@@ -76,8 +76,10 @@ const LogisticsShipping = () => {
     const tracking = getTrackingNumber(order);
     if (!tracking) return { status: 'No Tracking', color: 'bg-gray-100 text-gray-800' };
     
-    if (order.status === 'completed') {
+    if (order.status === 'completed' || order.status === 'delivered') {
       return { status: 'Delivered', color: 'bg-green-100 text-green-800' };
+    } else if (order.status === 'shipped') {
+      return { status: 'Shipped', color: 'bg-green-100 text-green-800' };
     } else if (order.status === 'processing' && tracking) {
       return { status: 'In Transit', color: 'bg-blue-100 text-blue-800' };
     } else if (order.status === 'on-hold') {

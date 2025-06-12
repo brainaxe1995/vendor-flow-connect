@@ -20,8 +20,8 @@ const Dashboard = () => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
   const { data: topSellers = [], isLoading: topSellersLoading } = useTopSellingProducts({
-    per_page: 10
-    // Using default date range from the hook
+    per_page: 10,
+    period: 'all'
   });
 
   useEffect(() => {
