@@ -17,16 +17,15 @@ export const getStatusColor = (status: string) => {
 export const getTrackingNumber = (order: any) => {
   if (!order?.meta_data) return null;
   
-  // Enhanced tracking detection with priority for legacy keys
+  // Enhanced tracking detection - only return values for keys that contain tracking numbers
   const trackingMeta = order.meta_data.find((meta: any) => {
     const key = meta.key?.toLowerCase() || '';
-    return key.includes('wot_tracking') || // Legacy key from PHP portal
-           key.includes('tracking') || 
-           key.includes('track') || 
-           key.includes('shipment') ||
-           key.includes('tracking_number') ||
-           key.includes('shipstation') ||
-           key.includes('aftership');
+    return (
+      (key.includes('number') || key.includes('no') || key === '_wot_tracking_number') &&
+      !key.includes('carrier') &&
+      !key.includes('provider') &&
+      !key.includes('eta')
+    );
   });
   
   return trackingMeta?.value || null;
@@ -34,17 +33,19 @@ export const getTrackingNumber = (order: any) => {
 
 export const getTrackingMetaKey = (order: any, trackingKeys?: string[]) => {
   if (!order?.meta_data) {
-    // Prioritize legacy key, then detected keys, then fallback
+    // Use detected keys or fallback to legacy key
     return trackingKeys?.[0] || '_wot_tracking_number';
   }
   
-  // Look for existing tracking meta in the order
+  // Look for existing tracking meta in the order - prioritize number keys
   const trackingMeta = order.meta_data.find((meta: any) => {
     const key = meta.key?.toLowerCase() || '';
-    return key.includes('wot_tracking') || // Legacy key gets priority
-           key.includes('tracking') || 
-           key.includes('track') || 
-           key.includes('shipment');
+    return (
+      (key.includes('number') || key.includes('no') || key === '_wot_tracking_number') &&
+      !key.includes('carrier') &&
+      !key.includes('provider') &&
+      !key.includes('eta')
+    );
   });
   
   if (trackingMeta?.key) {

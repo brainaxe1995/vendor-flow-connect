@@ -1,9 +1,13 @@
 
-import { useOrders } from './useWooCommerce';
+import { useOrders, useTrackingDetection } from './useWooCommerce';
 import { getTrackingNumber } from '../utils/orderUtils';
 
 export const useOrderQueries = (searchTerm: string, currentPage: number) => {
   const perPage = 100;
+  
+  // Get tracking keys for dynamic key detection
+  const { data: trackingKeys } = useTrackingDetection();
+  const primaryTrackingKey = trackingKeys?.[0] || '_wot_tracking_number';
 
   // Fetch orders for different statuses with proper error handling
   const pendingQuery = useOrders({ 
@@ -32,7 +36,7 @@ export const useOrderQueries = (searchTerm: string, currentPage: number) => {
     search: searchTerm, 
     per_page: perPage,
     page: currentPage,
-    meta_key: '_tracking_number',
+    meta_key: primaryTrackingKey,
     meta_compare: 'EXISTS'
   });
 

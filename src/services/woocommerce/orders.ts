@@ -1,3 +1,4 @@
+
 import { BaseWooCommerceService } from './base';
 import { WooCommerceOrder, WooCommerceResponse } from './types';
 
@@ -120,9 +121,43 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
       }
       
       const keys = Array.from(trackingKeys);
-      console.log('Detected tracking keys:', keys);
-      // Prioritize _wot_tracking_number if it exists, otherwise use detected keys or fallback
-      return keys.length > 0 ? keys : ['_wot_tracking_number', '_tracking_number'];
+      
+      // Sort keys to prioritize number keys first
+      const sortedKeys = keys.sort((a, b) => {
+        const aLower = a.toLowerCase();
+        const bLower = b.toLowerCase();
+        
+        // Prioritize _wot_tracking_number first
+        if (aLower === '_wot_tracking_number') return -1;
+        if (bLower === '_wot_tracking_number') return 1;
+        
+        // Then prioritize keys with 'number' or 'no'
+        const aHasNumber = aLower.includes('number') || aLower.includes('no');
+        const bHasNumber = bLower.includes('number') || bLower.includes('no');
+        
+        if (aHasNumber && !bHasNumber) return -1;
+        if (!aHasNumber && bHasNumber) return 1;
+        
+        // Then prioritize 'track' keys
+        const aHasTrack = aLower.includes('track');
+        const bHasTrack = bLower.includes('track');
+        
+        if (aHasTrack && !bHasTrack) return -1;
+        if (!aHasTrack && bHasTrack) return 1;
+        
+        // Put carrier/provider/eta keys last
+        const aIsCarrier = aLower.includes('carrier') || aLower.includes('provider') || aLower.includes('eta');
+        const bIsCarrier = bLower.includes('carrier') || bLower.includes('provider') || bLower.includes('eta');
+        
+        if (!aIsCarrier && bIsCarrier) return -1;
+        if (aIsCarrier && !bIsCarrier) return 1;
+        
+        return 0;
+      });
+      
+      console.log('Detected tracking keys (sorted by priority):', sortedKeys);
+      // Return sorted keys or fallback
+      return sortedKeys.length > 0 ? sortedKeys : ['_wot_tracking_number', '_tracking_number'];
     } catch (error) {
       console.error('Failed to detect tracking meta keys:', error);
       return ['_wot_tracking_number', '_tracking_number'];
