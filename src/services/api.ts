@@ -1,9 +1,9 @@
 
 // API service layer for WooCommerce and 17track integration
-const WOOCOMMERCE_BASE_URL = process.env.REACT_APP_WOOCOMMERCE_URL || 'https://your-store.com/wp-json/wc/v3';
-const WOOCOMMERCE_KEY = process.env.REACT_APP_WOOCOMMERCE_KEY || 'your_consumer_key';
-const WOOCOMMERCE_SECRET = process.env.REACT_APP_WOOCOMMERCE_SECRET || 'your_consumer_secret';
-const TRACK17_API_KEY = process.env.REACT_APP_17TRACK_API_KEY || 'your_17track_key';
+const WOOCOMMERCE_BASE_URL = import.meta.env.WOOCOMMERCE_STORE_URL as string;
+const WOOCOMMERCE_KEY = import.meta.env.WOOCOMMERCE_CONSUMER_KEY as string;
+const WOOCOMMERCE_SECRET = import.meta.env.WOOCOMMERCE_CONSUMER_SECRET as string;
+const TRACK17_API_KEY = import.meta.env.VITE_TRACK17_API_KEY as string;
 
 // WooCommerce API functions
 export const wooCommerceAPI = {
