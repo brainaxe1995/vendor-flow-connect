@@ -54,23 +54,8 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
   };
 
   return (
-    <Tabs defaultValue="pending" className="space-y-4">
+    <Tabs defaultValue="processing" className="space-y-4">
       <OrderTabsHeader orderCounts={orderCounts} />
-
-      <OrderTabContent
-        value="pending"
-        title="Pending Orders"
-        description="Orders waiting to be processed"
-        orders={ordersByStatus.pending}
-        isLoading={queries.pending.isLoading}
-        totalPages={queries.pending.data?.totalPages || 1}
-        totalRecords={queries.pending.data?.totalRecords}
-        currentPage={currentPage}
-        onPageChange={onPageChange}
-        onEditOrder={onEditOrder}
-        getStatusColor={getStatusColor}
-        getTrackingNumber={getTrackingNumber}
-      />
 
       <OrderTabContent
         value="processing"
@@ -81,6 +66,21 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         showTracking={true}
         totalPages={queries.processing.data?.totalPages || 1}
         totalRecords={queries.processing.data?.totalRecords}
+        currentPage={currentPage}
+        onPageChange={onPageChange}
+        onEditOrder={onEditOrder}
+        getStatusColor={getStatusColor}
+        getTrackingNumber={getTrackingNumber}
+      />
+
+      <OrderTabContent
+        value="pending"
+        title="Pending Orders"
+        description="Orders waiting to be processed"
+        orders={ordersByStatus.pending}
+        isLoading={queries.pending.isLoading}
+        totalPages={queries.pending.data?.totalPages || 1}
+        totalRecords={queries.pending.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}

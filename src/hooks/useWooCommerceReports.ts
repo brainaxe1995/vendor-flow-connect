@@ -90,9 +90,8 @@ export const useTopSellingProducts = (params?: {
 }) => {
   const { isConfigured } = useWooCommerceConfig();
 
-  const dateParams = params?.date_min && params?.date_max ?
-    params :
-    { ...params, ...getLastThirtyDaysRange() };
+  const shouldUseDefaultRange = !params?.period && !params?.date_min && !params?.date_max;
+  const dateParams = shouldUseDefaultRange ? { ...params, ...getLastThirtyDaysRange() } : params;
 
   return useQuery({
     queryKey: ['top-selling-products', dateParams],

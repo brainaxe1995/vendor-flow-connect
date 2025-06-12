@@ -15,13 +15,13 @@ const Dashboard = () => {
   const { data: productStats, isLoading: productStatsLoading, error: productStatsError } = useProductStats();
   const { notifications } = useSupabaseNotifications();
   
-  // Get top sellers for the last 30 days
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+  const allTimeRange = {
+    date_min: '2000-01-01',
+    date_max: new Date().toISOString().split('T')[0]
+  };
   const { data: topSellers = [], isLoading: topSellersLoading } = useTopSellingProducts({
-    per_page: 10
-    // Using default date range from the hook
+    per_page: 10,
+    ...allTimeRange
   });
 
   useEffect(() => {

@@ -20,11 +20,11 @@ interface OrderTabsHeaderProps {
 const OrderTabsHeader: React.FC<OrderTabsHeaderProps> = ({ orderCounts }) => {
   return (
     <TabsList className="grid w-full grid-cols-9">
-      <TabsTrigger value="pending" className="flex items-center gap-2">
-        Pending <Badge variant="secondary">{orderCounts.pending}</Badge>
-      </TabsTrigger>
       <TabsTrigger value="processing" className="flex items-center gap-2">
         Processing <Badge variant="secondary">{orderCounts.processing}</Badge>
+      </TabsTrigger>
+      <TabsTrigger value="pending" className="flex items-center gap-2">
+        Pending <Badge variant="secondary">{orderCounts.pending}</Badge>
       </TabsTrigger>
       <TabsTrigger value="in-transit" className="flex items-center gap-2">
         In Transit <Badge variant="secondary">{orderCounts.inTransit}</Badge>
