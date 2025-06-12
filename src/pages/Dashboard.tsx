@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Package, Truck, CheckCircle, AlertTriangle, DollarSign, TrendingUp, Bell, Settings } from 'lucide-react';
-import { useOrderStats, useProductStats, useNotifications, useWooCommerceConfig, useTopSellers } from '../hooks/useWooCommerce';
+import { useOrderStats, useProductStats, useWooCommerceConfig, useTopSellers } from '../hooks/useWooCommerce';
+import { useSupabaseNotifications } from '../hooks/useSupabaseNotifications';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -12,7 +13,7 @@ const Dashboard = () => {
   const { config, isConfigured } = useWooCommerceConfig();
   const { data: orderStats, isLoading: orderStatsLoading, error: orderStatsError } = useOrderStats();
   const { data: productStats, isLoading: productStatsLoading, error: productStatsError } = useProductStats();
-  const { data: notifications } = useNotifications();
+  const { notifications } = useSupabaseNotifications();
   
   // Get top sellers for the last 30 days
   const thirtyDaysAgo = new Date();
