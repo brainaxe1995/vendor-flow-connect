@@ -42,15 +42,15 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
 }) => {
   // Order counts for tabs
   const orderCounts = {
-    pending: ordersByStatus.pending?.length || 0,
-    processing: ordersByStatus.processing?.length || 0,
-    inTransit: ordersByStatus.inTransit?.length || 0,
-    onHold: ordersByStatus.onHold?.length || 0,
-    completed: ordersByStatus.completed?.length || 0,
-    cancelled: ordersByStatus.cancelled?.length || 0,
-    refunded: ordersByStatus.refunded?.length || 0,
-    failed: ordersByStatus.failed?.length || 0,
-    pendingPayment: ordersByStatus.pendingPayment?.length || 0
+    pending: queries.pending.data?.totalRecords || 0,
+    processing: queries.processing.data?.totalRecords || 0,
+    inTransit: queries.inTransit.data?.totalRecords || 0,
+    onHold: queries.onHold.data?.totalRecords || 0,
+    completed: queries.completed.data?.totalRecords || 0,
+    cancelled: queries.cancelled.data?.totalRecords || 0,
+    refunded: queries.refunded.data?.totalRecords || 0,
+    failed: queries.failed.data?.totalRecords || 0,
+    pendingPayment: queries.pendingPayment.data?.totalRecords || 0
   };
 
   return (
@@ -96,7 +96,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         isLoading={queries.inTransit.isLoading}
         showTracking={true}
         totalPages={queries.inTransit.data?.totalPages || 1}
-        totalRecords={ordersByStatus.inTransit.length}
+        totalRecords={queries.inTransit.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}
@@ -111,6 +111,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         orders={ordersByStatus.onHold}
         isLoading={queries.onHold.isLoading}
         totalPages={queries.onHold.data?.totalPages || 1}
+        totalRecords={queries.onHold.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}
@@ -126,6 +127,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         isLoading={queries.completed.isLoading}
         showTracking={true}
         totalPages={queries.completed.data?.totalPages || 1}
+        totalRecords={queries.completed.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}
@@ -140,6 +142,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         orders={ordersByStatus.cancelled}
         isLoading={queries.cancelled.isLoading}
         totalPages={queries.cancelled.data?.totalPages || 1}
+        totalRecords={queries.cancelled.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}
@@ -154,6 +157,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         orders={ordersByStatus.refunded}
         isLoading={queries.refunded.isLoading}
         totalPages={queries.refunded.data?.totalPages || 1}
+        totalRecords={queries.refunded.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}
@@ -168,6 +172,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         orders={ordersByStatus.failed}
         isLoading={queries.failed.isLoading}
         totalPages={queries.failed.data?.totalPages || 1}
+        totalRecords={queries.failed.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}

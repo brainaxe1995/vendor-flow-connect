@@ -12,6 +12,10 @@ interface ShipmentTabsProps {
   inTransitOrders: any[];
   onHoldOrders: any[];
   shippedOrders: any[];
+  readyToShipCount?: number;
+  inTransitCount?: number;
+  onHoldCount?: number;
+  shippedCount?: number;
   processingLoading: boolean;
   onHoldLoading: boolean;
   shippedLoading: boolean;
@@ -33,6 +37,10 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
   inTransitOrders,
   onHoldOrders,
   shippedOrders,
+  readyToShipCount,
+  inTransitCount,
+  onHoldCount,
+  shippedCount,
   processingLoading,
   onHoldLoading,
   shippedLoading,
@@ -53,19 +61,19 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
       <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="ready-to-ship" className="flex items-center gap-2">
           <Package className="w-4 h-4" />
-          Ready to Ship <Badge variant="secondary">{readyToShipOrders?.length || 0}</Badge>
+          Ready to Ship <Badge variant="secondary">{(readyToShipCount ?? readyToShipOrders?.length) || 0}</Badge>
         </TabsTrigger>
         <TabsTrigger value="in-transit" className="flex items-center gap-2">
           <Truck className="w-4 h-4" />
-          In Transit <Badge variant="secondary">{inTransitOrders?.length || 0}</Badge>
+          In Transit <Badge variant="secondary">{(inTransitCount ?? inTransitOrders?.length) || 0}</Badge>
         </TabsTrigger>
         <TabsTrigger value="exceptions" className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4" />
-          Exceptions <Badge variant="destructive">{onHoldOrders?.length || 0}</Badge>
+          Exceptions <Badge variant="destructive">{(onHoldCount ?? onHoldOrders?.length) || 0}</Badge>
         </TabsTrigger>
         <TabsTrigger value="delivered" className="flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
-          Delivered <Badge variant="secondary">{shippedOrders?.length || 0}</Badge>
+          Delivered <Badge variant="secondary">{(shippedCount ?? shippedOrders?.length) || 0}</Badge>
         </TabsTrigger>
       </TabsList>
 
