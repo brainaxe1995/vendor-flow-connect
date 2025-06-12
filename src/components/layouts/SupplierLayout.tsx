@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import NotificationBell from '@/components/NotificationBell';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { 
   LayoutDashboard, 
@@ -196,12 +197,7 @@ const SupplierLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-4 h-4" />
-              <Badge variant="destructive" className="absolute -top-1 -right-1 text-xs w-5 h-5 p-0 flex items-center justify-center">
-                3
-              </Badge>
-            </Button>
+            <NotificationBell />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-primary-foreground" />
