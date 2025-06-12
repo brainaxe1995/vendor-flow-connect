@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Package, Truck, AlertTriangle, CheckCircle } from 'lucide-react';
 import ShipmentTable from './ShipmentTable';
+import ShipmentPagination from './ShipmentPagination';
 
 interface ShipmentTabsProps {
   readyToShipOrders: any[];
@@ -20,6 +21,11 @@ interface ShipmentTabsProps {
   onAddTracking: (orderId: number) => void;
   onViewTracking?: (orderId: number, trackingNumber: string) => void;
   getShipmentStatus: (order: any) => { status: string; color: string };
+  processingTotalPages: number;
+  shippedTotalPages: number;
+  onHoldTotalPages: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }
 
 const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
@@ -36,6 +42,11 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
   onAddTracking,
   onViewTracking,
   getShipmentStatus,
+  processingTotalPages,
+  shippedTotalPages,
+  onHoldTotalPages,
+  currentPage,
+  onPageChange,
 }) => {
   return (
     <Tabs defaultValue="ready-to-ship" className="space-y-4">
@@ -65,20 +76,25 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <CardDescription>Orders ready for shipment (no tracking assigned)</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShipmentTable 
-              orders={readyToShipOrders} 
-              isLoading={processingLoading} 
-              showAddTracking={true}
-              trackingInputs={trackingInputs}
-              updatingOrderId={updatingOrderId}
-              onTrackingInputChange={onTrackingInputChange}
-              onAddTracking={onAddTracking}
-              onViewTracking={onViewTracking}
-              getShipmentStatus={getShipmentStatus}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
+          <ShipmentTable
+            orders={readyToShipOrders}
+            isLoading={processingLoading}
+            showAddTracking={true}
+            trackingInputs={trackingInputs}
+            updatingOrderId={updatingOrderId}
+            onTrackingInputChange={onTrackingInputChange}
+            onAddTracking={onAddTracking}
+            onViewTracking={onViewTracking}
+            getShipmentStatus={getShipmentStatus}
+          />
+          <ShipmentPagination
+            totalPages={processingTotalPages}
+            currentPage={currentPage}
+            onPageChange={onPageChange}
+          />
+        </CardContent>
+      </Card>
+    </TabsContent>
 
       <TabsContent value="in-transit">
         <Card>
@@ -87,20 +103,25 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <CardDescription>Orders with tracking numbers being shipped</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShipmentTable 
-              orders={inTransitOrders} 
-              isLoading={processingLoading}
-              showTracking={true}
-              trackingInputs={trackingInputs}
-              updatingOrderId={updatingOrderId}
-              onTrackingInputChange={onTrackingInputChange}
-              onAddTracking={onAddTracking}
-              onViewTracking={onViewTracking}
-              getShipmentStatus={getShipmentStatus}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
+          <ShipmentTable
+            orders={inTransitOrders}
+            isLoading={processingLoading}
+            showTracking={true}
+            trackingInputs={trackingInputs}
+            updatingOrderId={updatingOrderId}
+            onTrackingInputChange={onTrackingInputChange}
+            onAddTracking={onAddTracking}
+            onViewTracking={onViewTracking}
+            getShipmentStatus={getShipmentStatus}
+          />
+          <ShipmentPagination
+            totalPages={processingTotalPages}
+            currentPage={currentPage}
+            onPageChange={onPageChange}
+          />
+        </CardContent>
+      </Card>
+    </TabsContent>
 
       <TabsContent value="exceptions">
         <Card>
@@ -109,19 +130,24 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <CardDescription>Orders with shipping issues that need attention</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShipmentTable 
-              orders={onHoldOrders} 
-              isLoading={onHoldLoading}
-              trackingInputs={trackingInputs}
-              updatingOrderId={updatingOrderId}
-              onTrackingInputChange={onTrackingInputChange}
-              onAddTracking={onAddTracking}
-              onViewTracking={onViewTracking}
-              getShipmentStatus={getShipmentStatus}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
+          <ShipmentTable
+            orders={onHoldOrders}
+            isLoading={onHoldLoading}
+            trackingInputs={trackingInputs}
+            updatingOrderId={updatingOrderId}
+            onTrackingInputChange={onTrackingInputChange}
+            onAddTracking={onAddTracking}
+            onViewTracking={onViewTracking}
+            getShipmentStatus={getShipmentStatus}
+          />
+          <ShipmentPagination
+            totalPages={onHoldTotalPages}
+            currentPage={currentPage}
+            onPageChange={onPageChange}
+          />
+        </CardContent>
+      </Card>
+    </TabsContent>
 
       <TabsContent value="delivered">
         <Card>
@@ -130,20 +156,25 @@ const ShipmentTabs: React.FC<ShipmentTabsProps> = ({
             <CardDescription>Successfully delivered shipments</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShipmentTable 
-              orders={shippedOrders} 
-              isLoading={shippedLoading}
-              showTracking={true}
-              trackingInputs={trackingInputs}
-              updatingOrderId={updatingOrderId}
-              onTrackingInputChange={onTrackingInputChange}
-              onAddTracking={onAddTracking}
-              onViewTracking={onViewTracking}
-              getShipmentStatus={getShipmentStatus}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
+          <ShipmentTable
+            orders={shippedOrders}
+            isLoading={shippedLoading}
+            showTracking={true}
+            trackingInputs={trackingInputs}
+            updatingOrderId={updatingOrderId}
+            onTrackingInputChange={onTrackingInputChange}
+            onAddTracking={onAddTracking}
+            onViewTracking={onViewTracking}
+            getShipmentStatus={getShipmentStatus}
+          />
+          <ShipmentPagination
+            totalPages={shippedTotalPages}
+            currentPage={currentPage}
+            onPageChange={onPageChange}
+          />
+        </CardContent>
+      </Card>
+    </TabsContent>
     </Tabs>
   );
 };
