@@ -26,12 +26,24 @@ export const useSupabaseConfig = () => {
       }
 
       // Store WooCommerce config in user's address field as JSONB
+      // Convert to JSON-compatible format
+      const addressData = {
+        woocommerce_config: {
+          storeUrl: configData.storeUrl,
+          consumerKey: configData.consumerKey,
+          consumerSecret: configData.consumerSecret,
+          environment: configData.environment,
+          permissions: configData.permissions,
+          status: configData.status,
+          lastUsed: configData.lastUsed || null,
+          lastSync: configData.lastSync || null
+        }
+      };
+
       const { data, error } = await supabase
         .from('profiles')
         .update({
-          address: {
-            woocommerce_config: configData
-          }
+          address: addressData
         })
         .eq('id', user.id)
         .select()
@@ -63,8 +75,27 @@ export const useSupabaseConfig = () => {
 
       if (error) throw error;
 
-      const wooConfig = data?.address?.woocommerce_config as WooCommerceConfig;
-      setConfig(wooConfig || null);
+      // Safely extract WooCommerce config from JSONB
+      let wooConfig: WooCommerceConfig | null = null;
+      
+      if (data?.address && typeof data.address === 'object' && data.address !== null) {
+        const addressObj = data.address as Record<string, any>;
+        if (addressObj.woocommerce_config) {
+          const configData = addressObj.woocommerce_config;
+          wooConfig = {
+            storeUrl: configData.storeUrl || '',
+            consumerKey: configData.consumerKey || '',
+            consumerSecret: configData.consumerSecret || '',
+            environment: configData.environment || 'live',
+            permissions: configData.permissions || 'write',
+            status: configData.status || 'inactive',
+            lastUsed: configData.lastUsed || undefined,
+            lastSync: configData.lastSync || undefined
+          } as WooCommerceConfig;
+        }
+      }
+      
+      setConfig(wooConfig);
       console.log('WooCommerce config loaded from Supabase');
       return wooConfig;
     } catch (error) {
