@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '../../contexts/AuthContext';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { 
   LayoutDashboard, 
   Package, 
@@ -27,7 +27,10 @@ const SupplierLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useSupabaseAuth();
+
+  // Determine user role from email (admin emails contain 'admin' or 'tharavix')
+  const userRole = user?.email?.toLowerCase().includes('admin') || user?.email?.toLowerCase().includes('tharavix') ? 'admin' : 'supplier';
 
   const allNavigationItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', badge: null, roles: ['admin', 'supplier'] },
@@ -45,14 +48,19 @@ const SupplierLayout = () => {
 
   // Filter navigation items based on user role
   const navigationItems = allNavigationItems.filter(item => 
-    item.roles.includes(user?.role || 'supplier')
+    item.roles.includes(userRole)
   );
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('Logout button clicked');
-    logout();
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   // Get real order counts from API or context if available
@@ -130,10 +138,10 @@ const SupplierLayout = () => {
               </div>
               {sidebarOpen && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user?.name}</p>
+                  <p className="text-sm font-medium truncate">{user?.email}</p>
                   <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                   <Badge variant="outline" className="text-xs mt-1">
-                    {user?.role}
+                    {userRole}
                   </Badge>
                 </div>
               )}
@@ -182,7 +190,7 @@ const SupplierLayout = () => {
                 {navigationItems.find(item => isActive(item.path))?.label || 'Dashboard'}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Manage your {user?.role === 'admin' ? 'admin' : 'supplier'} operations
+                Manage your {userRole === 'admin' ? 'admin' : 'supplier'} operations
               </p>
             </div>
           </div>
@@ -199,8 +207,8 @@ const SupplierLayout = () => {
                 <User className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="hidden md:block text-right">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.role}</p>
+                <p className="text-sm font-medium">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">{userRole}</p>
               </div>
             </div>
           </div>
