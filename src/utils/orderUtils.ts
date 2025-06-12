@@ -17,10 +17,11 @@ export const getStatusColor = (status: string) => {
 export const getTrackingNumber = (order: any) => {
   if (!order?.meta_data) return null;
   
-  // Enhanced tracking detection
+  // Enhanced tracking detection with priority for legacy keys
   const trackingMeta = order.meta_data.find((meta: any) => {
     const key = meta.key?.toLowerCase() || '';
-    return key.includes('tracking') || 
+    return key.includes('wot_tracking') || // Legacy key from PHP portal
+           key.includes('tracking') || 
            key.includes('track') || 
            key.includes('shipment') ||
            key.includes('tracking_number') ||
@@ -32,12 +33,24 @@ export const getTrackingNumber = (order: any) => {
 };
 
 export const getTrackingMetaKey = (order: any, trackingKeys?: string[]) => {
-  if (!order?.meta_data) return trackingKeys?.[0] || '_tracking_number';
+  if (!order?.meta_data) {
+    // Prioritize legacy key, then detected keys, then fallback
+    return trackingKeys?.[0] || '_wot_tracking_number';
+  }
   
+  // Look for existing tracking meta in the order
   const trackingMeta = order.meta_data.find((meta: any) => {
     const key = meta.key?.toLowerCase() || '';
-    return key.includes('tracking') || key.includes('track') || key.includes('shipment');
+    return key.includes('wot_tracking') || // Legacy key gets priority
+           key.includes('tracking') || 
+           key.includes('track') || 
+           key.includes('shipment');
   });
   
-  return trackingMeta?.key || trackingKeys?.[0] || '_tracking_number';
+  if (trackingMeta?.key) {
+    return trackingMeta.key;
+  }
+  
+  // If no existing tracking meta, use detected keys or fallback to legacy
+  return trackingKeys?.[0] || '_wot_tracking_number';
 };

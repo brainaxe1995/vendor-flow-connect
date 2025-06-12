@@ -1,4 +1,3 @@
-
 import { BaseWooCommerceService } from './base';
 import { WooCommerceOrder, WooCommerceResponse } from './types';
 
@@ -19,6 +18,9 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
     queryParams.append('per_page', perPage.toString());
     queryParams.append('page', Math.max(params.page || 1, 1).toString());
     
+    // Add context=edit to ensure meta_data is included in responses
+    queryParams.append('context', 'edit');
+    
     Object.entries(params).forEach(([key, value]) => {
       if (value && key !== 'per_page' && key !== 'page') {
         queryParams.append(key, String(value));
@@ -28,7 +30,8 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
     const endpoint = `/orders?${queryParams.toString()}`;
     console.log('Fetching orders with validated params:', {
       ...params,
-      per_page: perPage
+      per_page: perPage,
+      context: 'edit'
     });
     
     const response = await this.makeRequest(endpoint);
@@ -44,7 +47,7 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
   }
 
   async getOrder(orderId: number): Promise<WooCommerceOrder> {
-    const response = await this.makeRequest(`/orders/${orderId}`);
+    const response = await this.makeRequest(`/orders/${orderId}?context=edit`);
     return response.json();
   }
 
@@ -57,19 +60,18 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
     return response.json();
   }
 
-  async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey?: string): Promise<WooCommerceOrder> {
-    const key = trackingKey || '_tracking_number';
+  async updateOrderTracking(orderId: number, trackingNumber: string, trackingKey: string = '_wot_tracking_number'): Promise<WooCommerceOrder> {
     const updateData = {
       meta_data: [
         {
           id: 0,
-          key,
+          key: trackingKey,
           value: trackingNumber,
         }
       ],
     };
     
-    console.log('Updating tracking for order:', orderId, 'with key:', key, 'value:', trackingNumber);
+    console.log('Updating tracking for order:', orderId, 'with key:', trackingKey, 'value:', trackingNumber);
     return this.updateOrder(orderId, updateData);
   }
 
@@ -108,7 +110,8 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
                   keyLower.includes('shipment') ||
                   keyLower.includes('tracking_number') ||
                   keyLower.includes('shipstation') ||
-                  keyLower.includes('aftership')) {
+                  keyLower.includes('aftership') ||
+                  keyLower.includes('wot_tracking')) {
                 trackingKeys.add(meta.key);
               }
             });
@@ -118,10 +121,11 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
       
       const keys = Array.from(trackingKeys);
       console.log('Detected tracking keys:', keys);
-      return keys.length > 0 ? keys : ['_tracking_number'];
+      // Prioritize _wot_tracking_number if it exists, otherwise use detected keys or fallback
+      return keys.length > 0 ? keys : ['_wot_tracking_number', '_tracking_number'];
     } catch (error) {
       console.error('Failed to detect tracking meta keys:', error);
-      return ['_tracking_number'];
+      return ['_wot_tracking_number', '_tracking_number'];
     }
   }
 }

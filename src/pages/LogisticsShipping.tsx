@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { useOrders, useUpdateOrder } from '../hooks/useWooCommerce';
-import { getTrackingNumber } from '@/utils/orderUtils';
+import { useOrders, useUpdateOrder, useTrackingDetection } from '../hooks/useWooCommerce';
+import { getTrackingNumber, getTrackingMetaKey } from '@/utils/orderUtils';
 import { toast } from 'sonner';
 import LogisticsHeader from '@/components/logistics/LogisticsHeader';
 import ShipmentTabs from '@/components/logistics/ShipmentTabs';
@@ -10,6 +10,9 @@ const LogisticsShipping = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
+
+  // Get tracking keys for dynamic key detection
+  const { data: trackingKeys } = useTrackingDetection();
 
   const { data: processingData, isLoading: processingLoading } = useOrders({ 
     status: 'processing',
@@ -65,6 +68,17 @@ const LogisticsShipping = () => {
       return;
     }
 
+    // Find the order to get the correct tracking key
+    const order = processingOrders.find(o => o.id === orderId);
+    if (!order) {
+      toast.error('Order not found');
+      return;
+    }
+
+    // Use dynamic tracking key detection
+    const trackingKey = getTrackingMetaKey(order, trackingKeys);
+    console.log('Using tracking key for order', orderId, ':', trackingKey);
+
     setUpdatingOrderId(orderId);
     try {
       await updateOrderMutation.mutateAsync({
@@ -73,7 +87,7 @@ const LogisticsShipping = () => {
           meta_data: [
             {
               id: 0,
-              key: '_tracking_number',
+              key: trackingKey,
               value: trackingNumber.trim()
             }
           ],
