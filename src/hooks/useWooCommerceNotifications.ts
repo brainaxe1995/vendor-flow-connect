@@ -1,35 +1,49 @@
 
 import { useState, useEffect } from 'react';
-import { useOrders } from './useWooCommerceOrders';
+import { useQuery } from '@tanstack/react-query';
 import { useProducts } from './useWooCommerceProducts';
+import { useOrders } from './useWooCommerceOrders';
+import { useWooCommerceConfig } from './useWooCommerceConfig';
+import { wooCommerceService } from '../services/woocommerce';
 import { OrderStats, ProductStats, Notification } from '../types/woocommerce';
 
 export const useOrderStats = (dateRange?: { date_min?: string; date_max?: string }) => {
-  const { data: response, isLoading, error } = useOrders({ 
-    per_page: 100, // Fixed: Use valid per_page limit
-    after: dateRange?.date_min,
-    before: dateRange?.date_max 
-  });
-  
-  // Fixed: Initialize stats properly and add guards
-  let stats: OrderStats | undefined;
-  
-  if (response?.data && Array.isArray(response.data)) {
-    const orders = response.data;
-    stats = {
-      pending: orders.filter(o => o.status === 'pending').length,
-      processing: orders.filter(o => o.status === 'processing').length,
-      onHold: orders.filter(o => o.status === 'on-hold').length,
-      completed: orders.filter(o => o.status === 'completed').length,
-      cancelled: orders.filter(o => o.status === 'cancelled').length,
-      refunded: orders.filter(o => o.status === 'refunded').length,
-      failed: orders.filter(o => o.status === 'failed').length,
-      totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0),
-      refundRate: orders.length > 0 ? (orders.filter(o => o.status === 'refunded').length / orders.length) * 100 : 0,
-    };
-  }
+  const { isConfigured } = useWooCommerceConfig();
 
-  return { data: stats, isLoading, error };
+  return useQuery({
+    queryKey: ['order-stats', dateRange],
+    enabled: isConfigured,
+    queryFn: async (): Promise<OrderStats> => {
+      const statuses = ['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
+
+      const requests = await Promise.all(
+        statuses.map(status =>
+          wooCommerceService.getOrders({ status, per_page: 1, after: dateRange?.date_min, before: dateRange?.date_max })
+        )
+      );
+
+      const counts: Record<string, number> = {};
+      statuses.forEach((status, idx) => {
+        counts[status] = requests[idx].totalRecords;
+      });
+
+      const allOrders = await wooCommerceService.getOrders({ per_page: 1, after: dateRange?.date_min, before: dateRange?.date_max });
+      const sales = await wooCommerceService.getSalesReport({ period: 'all' });
+
+      return {
+        pending: counts['pending'] || 0,
+        processing: counts['processing'] || 0,
+        onHold: counts['on-hold'] || 0,
+        completed: counts['completed'] || 0,
+        cancelled: counts['cancelled'] || 0,
+        refunded: counts['refunded'] || 0,
+        failed: counts['failed'] || 0,
+        totalRevenue: parseFloat((sales as any).total_sales ?? '0'),
+        refundRate: allOrders.totalRecords > 0 ? (counts['refunded'] / allOrders.totalRecords) * 100 : 0,
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 };
 
 export const useProductStats = () => {
