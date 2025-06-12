@@ -106,8 +106,8 @@ Add custom meta data through WooCommerce or plugins, the portal will sync automa
 - Store URL (with https://)
 - Consumer Key (starts with `ck_`)
 - Consumer Secret (starts with `cs_`)
-- Supabase project URL (`VITE_SUPABASE_URL` in `.env`)
-- Supabase anon key (`VITE_SUPABASE_ANON_KEY` in `.env`)
+- Supabase project URL (`NEXT_PUBLIC_SUPABASE_URL` in `.env`)
+- Supabase anon key (`NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env`)
 
 **Optional Integrations:**
 - 17track API for shipment tracking
