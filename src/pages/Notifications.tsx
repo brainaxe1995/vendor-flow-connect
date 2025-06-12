@@ -35,11 +35,13 @@ const Notifications = () => {
       case 'unread':
         return notifications.filter(n => !n.read);
       case 'orders':
-        return notifications.filter(n => n.type === 'info' || (n.data && n.data.category === 'orders'));
+        return notifications.filter(n => n.type === 'order');
       case 'inventory':
-        return notifications.filter(n => n.type === 'warning' || (n.data && n.data.category === 'inventory'));
+        return notifications.filter(n => n.type === 'product');
       case 'shipping':
-        return notifications.filter(n => n.type === 'success' || (n.data && n.data.category === 'shipping'));
+        return notifications.filter(n => n.type === 'system' && 
+          typeof n.data === 'object' && n.data !== null && 
+          'category' in n.data && n.data.category === 'shipping');
       default:
         return notifications;
     }
@@ -47,19 +49,23 @@ const Notifications = () => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'warning': return '⚠️';
-      case 'success': return '✅';
-      case 'error': return '❌';
+      case 'order': return '📦';
+      case 'product': return '📋';
+      case 'system': return '⚙️';
+      case 'compliance': return '📄';
+      case 'payment': return '💳';
       default: return 'ℹ️';
     }
   };
 
   const getNotificationBadgeColor = (type: string) => {
     switch (type) {
-      case 'warning': return 'bg-yellow-100 text-yellow-800';
-      case 'success': return 'bg-green-100 text-green-800';
-      case 'error': return 'bg-red-100 text-red-800';
-      default: return 'bg-blue-100 text-blue-800';
+      case 'order': return 'bg-blue-100 text-blue-800';
+      case 'product': return 'bg-yellow-100 text-yellow-800';
+      case 'system': return 'bg-green-100 text-green-800';
+      case 'compliance': return 'bg-purple-100 text-purple-800';
+      case 'payment': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -123,13 +129,13 @@ const Notifications = () => {
             Unread <Badge variant="destructive">{unreadCount}</Badge>
           </TabsTrigger>
           <TabsTrigger value="orders" className="flex items-center gap-2">
-            Orders <Badge variant="secondary">{notifications.filter(n => n.type === 'info').length}</Badge>
+            Orders <Badge variant="secondary">{notifications.filter(n => n.type === 'order').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex items-center gap-2">
-            Inventory <Badge variant="secondary">{notifications.filter(n => n.type === 'warning').length}</Badge>
+            Inventory <Badge variant="secondary">{notifications.filter(n => n.type === 'product').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="shipping" className="flex items-center gap-2">
-            Shipping <Badge variant="secondary">{notifications.filter(n => n.type === 'success').length}</Badge>
+            Shipping <Badge variant="secondary">{notifications.filter(n => n.type === 'system').length}</Badge>
           </TabsTrigger>
         </TabsList>
 
