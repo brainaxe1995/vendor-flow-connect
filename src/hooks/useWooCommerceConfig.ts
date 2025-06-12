@@ -26,26 +26,42 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
 
 export const useWooCommerceConfig = () => {
   const { user } = useSupabaseAuth();
-  const { config: supabaseConfig, saveWooCommerceConfig: saveToSupabase, loadWooCommerceConfig } = useSupabaseConfig();
+  const {
+    config: supabaseConfig,
+    saveWooCommerceConfig: saveToSupabase,
+    loadWooCommerceConfig,
+    loading: supabaseLoading,
+  } = useSupabaseConfig();
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user && supabaseConfig) {
-      // Only update if config actually changed
       if (!deepEqual(config, supabaseConfig)) {
         setConfig(supabaseConfig);
         wooCommerceService.setConfig(supabaseConfig);
         setIsConfigured(supabaseConfig.status === 'active');
         console.log('WooCommerce config loaded from Supabase');
       }
+      setLoading(false);
+    } else if (user && !supabaseConfig && !supabaseLoading) {
+      // Config missing - try to load from Supabase
+      loadWooCommerceConfig();
     } else if (!user) {
-      // Clear config when user logs out
       setConfig(null);
       setIsConfigured(false);
+      setLoading(false);
       console.log('User logged out, clearing WooCommerce config');
     }
-  }, [user, supabaseConfig]);
+  }, [user, supabaseConfig, supabaseLoading]);
+
+  // Update loading state when Supabase hook is fetching
+  useEffect(() => {
+    if (supabaseLoading) {
+      setLoading(true);
+    }
+  }, [supabaseLoading]);
 
   const saveConfig = async (newConfig: WooCommerceConfig) => {
     try {
@@ -86,5 +102,11 @@ export const useWooCommerceConfig = () => {
     }
   };
 
-  return { config, saveConfig, isConfigured };
+  return {
+    config,
+    saveConfig,
+    isConfigured,
+    loading,
+    reloadConfig: loadWooCommerceConfig,
+  };
 };

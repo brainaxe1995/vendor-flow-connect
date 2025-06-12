@@ -3,14 +3,14 @@ import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, Truck, CheckCircle, AlertTriangle, DollarSign, TrendingUp, Bell, Settings } from 'lucide-react';
+import { Package, Truck, CheckCircle, AlertTriangle, DollarSign, TrendingUp, Bell, Settings, Loader2 } from 'lucide-react';
 import { useOrderStats, useProductStats, useWooCommerceConfig, useTopSellers } from '../hooks/useWooCommerce';
 import { useSupabaseNotifications } from '../hooks/useSupabaseNotifications';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { config, isConfigured } = useWooCommerceConfig();
+  const { config, isConfigured, loading: configLoading } = useWooCommerceConfig();
   const { data: orderStats, isLoading: orderStatsLoading, error: orderStatsError } = useOrderStats();
   const { data: productStats, isLoading: productStatsLoading, error: productStatsError } = useProductStats();
   const { notifications } = useSupabaseNotifications();
@@ -25,14 +25,25 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    if (!isConfigured) {
+    if (!configLoading && !isConfigured) {
       toast.error('WooCommerce not configured. Please configure your API credentials in Settings.');
-    } else if (orderStatsError || productStatsError) {
+    } else if (!configLoading && (orderStatsError || productStatsError)) {
       toast.error('Failed to load store data. Please check your API configuration.');
     }
-  }, [isConfigured, orderStatsError, productStatsError]);
+  }, [isConfigured, orderStatsError, productStatsError, configLoading]);
 
   const recentNotifications = (notifications || []).slice(0, 3);
+
+  if (configLoading) {
+    return (
+      <div className="p-6 space-y-6 text-center">
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground">Loading configuration...</p>
+      </div>
+    );
+  }
 
   if (!isConfigured) {
     return (
