@@ -5,9 +5,10 @@ import { WooCommerceConfig } from '@/types/woocommerce';
 import { useSupabaseAuth } from './useSupabaseAuth';
 
 export const useSupabaseConfig = () => {
-  const { user } = useSupabaseAuth();
+  const { user, loading: authLoading } = useSupabaseAuth();
   const [config, setConfig] = useState<WooCommerceConfig | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start in loading state until auth and config checks complete
+  const [loading, setLoading] = useState(true);
 
   const saveWooCommerceConfig = async (configData: WooCommerceConfig) => {
     if (!user) throw new Error('User not authenticated');
@@ -107,10 +108,16 @@ export const useSupabaseConfig = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (user) {
       loadWooCommerceConfig();
+    } else {
+      // No authenticated user, stop loading state
+      setConfig(null);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   return {
     config,
