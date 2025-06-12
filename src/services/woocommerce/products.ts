@@ -44,6 +44,19 @@ export class WooCommerceProductsService extends BaseWooCommerceService {
     return response.json();
   }
 
+  async getProductsByIds(ids: number[]): Promise<WooCommerceProduct[]> {
+    if (!ids || ids.length === 0) return [];
+    const uniqueIds = Array.from(new Set(ids));
+    const queryParams = new URLSearchParams();
+    queryParams.append('include', uniqueIds.join(','));
+    const perPage = Math.min(Math.max(uniqueIds.length, 1), 100);
+    queryParams.append('per_page', perPage.toString());
+    const endpoint = `/products?${queryParams.toString()}`;
+    const response = await this.makeRequest(endpoint);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
   async updateProduct(productId: number, data: Partial<WooCommerceProduct>): Promise<WooCommerceProduct> {
     console.log('Updating product:', productId, data);
     

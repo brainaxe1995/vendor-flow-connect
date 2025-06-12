@@ -24,6 +24,7 @@ class WooCommerceService {
 
   public getProducts: WooCommerceProductsService['getProducts'];
   public getProduct: WooCommerceProductsService['getProduct'];
+  public getProductsByIds: WooCommerceProductsService['getProductsByIds'];
   public updateProduct: WooCommerceProductsService['updateProduct'];
   public getCategories: WooCommerceProductsService['getCategories'];
 
@@ -54,6 +55,7 @@ class WooCommerceService {
 
     this.getProducts = this.productsService.getProducts.bind(this.productsService);
     this.getProduct = this.productsService.getProduct.bind(this.productsService);
+    this.getProductsByIds = this.productsService.getProductsByIds.bind(this.productsService);
     this.updateProduct = this.productsService.updateProduct.bind(this.productsService);
     this.getCategories = this.productsService.getCategories.bind(this.productsService);
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Package, Truck, CheckCircle, AlertTriangle, DollarSign, TrendingUp, Bell, Settings, Loader2 } from 'lucide-react';
-import { useOrderStats, useProductStats, useWooCommerceConfig, useTopSellers } from '../hooks/useWooCommerce';
+import { useOrderStats, useProductStats, useWooCommerceConfig, useTopSellingProducts } from '../hooks/useWooCommerce';
 import { useSupabaseNotifications } from '../hooks/useSupabaseNotifications';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -19,8 +19,8 @@ const Dashboard = () => {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
-  const { data: topSellers = [], isLoading: topSellersLoading } = useTopSellers({
-    per_page: 5
+  const { data: topSellers = [], isLoading: topSellersLoading } = useTopSellingProducts({
+    per_page: 10
     // Using default date range from the hook
   });
 
@@ -190,20 +190,21 @@ const Dashboard = () => {
                   <p className="text-sm text-muted-foreground mt-2">Loading top sellers...</p>
                 </div>
               ) : topSellers && topSellers.length > 0 ? (
-                topSellers.slice(0, 5).map((product, index) => (
-                  <div key={`${product.product_id}-${index}`} className="flex items-center justify-between">
+                topSellers.slice(0, 10).map((product, index) => (
+                  <div key={`${product.id}-${index}`} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
                         {index + 1}
                       </div>
+                      {product.image && (
+                        <img src={product.image} alt={product.name} className="w-8 h-8 rounded object-cover" />
+                      )}
                       <div>
-                        <p className="font-medium text-sm">{product.product_name || 'Unknown Product'}</p>
-                        <p className="text-xs text-muted-foreground">{product.quantity || 0} sold</p>
+                        <p className="font-medium text-sm">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'}</p>
                       </div>
                     </div>
-                    <Badge variant="secondary">
-                      ${product.product_price || '0.00'}
-                    </Badge>
+                    <Badge variant="secondary">{product.quantity} sold</Badge>
                   </div>
                 ))
               ) : (

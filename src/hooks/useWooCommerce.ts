@@ -20,10 +20,11 @@ export {
   useCustomerAcquisition 
 } from './useWooCommerceCustomers';
 export { 
-  useSalesReport, 
-  useTopSellers, 
-  useExportData, 
-  useCategorySales 
+  useSalesReport,
+  useTopSellers,
+  useTopSellingProducts,
+  useExportData,
+  useCategorySales
 } from './useWooCommerceReports';
 export { 
   useOrderStats, 
