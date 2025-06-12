@@ -19,6 +19,8 @@ const LogisticsShipping = () => {
   // Get tracking keys for dynamic key detection
   const { data: trackingKeys } = useTrackingDetection();
 
+  const primaryTrackingKey = trackingKeys?.[0] || '_wot_tracking_number';
+
   const { data: processingData, isLoading: processingLoading } = useOrders({
     status: 'processing',
     search: searchTerm,
@@ -38,6 +40,15 @@ const LogisticsShipping = () => {
     page: currentPage,
   });
 
+  const { data: inTransitCountData } = useOrders({
+    status: 'processing',
+    search: searchTerm,
+    per_page: 1,
+    page: 1,
+    meta_key: primaryTrackingKey,
+    meta_compare: 'EXISTS'
+  });
+
   const queries = {
     processing: processingData,
     shipped: shippedData,
@@ -52,6 +63,12 @@ const LogisticsShipping = () => {
   // Filter orders based on tracking status for proper categorization using imported utility
   const readyToShipOrders = processingOrders.filter(order => !getTrackingNumber(order));
   const inTransitOrders = processingOrders.filter(order => getTrackingNumber(order));
+
+  const processingCount = processingData?.totalRecords || 0;
+  const inTransitCount = inTransitCountData?.totalRecords || 0;
+  const readyToShipCount = Math.max(processingCount - inTransitCount, 0);
+  const onHoldCount = onHoldData?.totalRecords || 0;
+  const shippedCount = shippedData?.totalRecords || 0;
 
   const updateOrderMutation = useUpdateOrder();
 
@@ -139,9 +156,13 @@ const LogisticsShipping = () => {
 
       <ShipmentTabs
         readyToShipOrders={readyToShipOrders}
+        readyToShipCount={readyToShipCount}
         inTransitOrders={inTransitOrders}
+        inTransitCount={inTransitCount}
         onHoldOrders={onHoldOrders}
+        onHoldCount={onHoldCount}
         shippedOrders={shippedOrders}
+        shippedCount={shippedCount}
         processingLoading={processingLoading}
         onHoldLoading={onHoldLoading}
         shippedLoading={shippedLoading}
