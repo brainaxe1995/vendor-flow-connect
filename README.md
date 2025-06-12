@@ -64,8 +64,8 @@ POST /wp-json/wc/v3/orders/{id}/refunds
 ### 2. Portal Configuration
 
 **Login Credentials:**
-- Any email/password combination works (demo authentication)
-- Use Admin or Supplier role as needed
+Login is handled through Supabase. You must sign in with a valid account created in your Supabase project.
+Use Admin or Supplier role as needed
 
 **API Configuration:**
 1. Login to the portal
@@ -106,9 +106,12 @@ Add custom meta data through WooCommerce or plugins, the portal will sync automa
 - Store URL (with https://)
 - Consumer Key (starts with `ck_`)
 - Consumer Secret (starts with `cs_`)
+- Supabase project URL (`VITE_SUPABASE_URL` in `.env`)
+- Supabase anon key (`VITE_SUPABASE_ANON_KEY` in `.env`)
 
 **Optional Integrations:**
 - 17track API for shipment tracking
+- 17track API key (`VITE_TRACK17_API_KEY` in `.env`) for shipment tracking
 - Custom compliance database
 - Payment gateway integration
 

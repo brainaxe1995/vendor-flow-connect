@@ -17,15 +17,58 @@ interface TrackingEvent {
 
 class SeventeenTrackService {
   private readonly baseUrl = 'https://api.17track.net/track/v2.2';
-  private readonly apiKey: string | null = null; // Would come from Supabase secrets
+  private readonly apiKey: string | undefined = import.meta.env.VITE_TRACK17_API_KEY;
 
   async getTrackingInfo(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
-    // For now, return mock data since we don't have API key configured
-    // In production, this would make real API calls to 17track
-    console.log('Fetching tracking info for:', trackingNumber, 'Carrier:', carrier);
-    
-    // Mock tracking data
-    return this.getMockTrackingInfo(trackingNumber);
+    try {
+      if (!this.apiKey) {
+        console.warn('17track API key not configured, returning mock data');
+        return this.getMockTrackingInfo(trackingNumber);
+      }
+
+      await fetch(`${this.baseUrl}/register`, {
+        method: 'POST',
+        headers: {
+          '17token': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([{ number: trackingNumber, carrier: carrier || 0 }])
+      });
+
+      const infoRes = await fetch(`${this.baseUrl}/gettrackinfo`, {
+        method: 'POST',
+        headers: {
+          '17token': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([{ number: trackingNumber }])
+      });
+
+      const json = await infoRes.json();
+      const data = json.data?.[0];
+      if (!data) return null;
+
+      const events = (data?.tracks || data?.origin_info?.trackinfo || []).map((e: any) => ({
+        date: e.time || e.track_time,
+        status: e.status || e.description,
+        location: e.location || '',
+        description: e.description || e.status
+      }));
+
+      const last = events[events.length - 1];
+
+      return {
+        number: trackingNumber,
+        carrier: data.carrier ?? '',
+        status: last?.status || 'Unknown',
+        lastUpdate: last?.date || new Date().toISOString(),
+        location: last?.location,
+        events
+      };
+    } catch (error) {
+      console.error('17track API error:', error);
+      return this.getMockTrackingInfo(trackingNumber);
+    }
   }
 
   private getMockTrackingInfo(trackingNumber: string): TrackingInfo {
