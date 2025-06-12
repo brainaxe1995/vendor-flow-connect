@@ -31,6 +31,22 @@ const Login = () => {
     }
   }, [user, loading, navigate, from]);
 
+  const validateUserRole = (userEmail: string, selectedTab: string): boolean => {
+    const isAdminEmail = userEmail.toLowerCase().includes('admin') || userEmail.toLowerCase().includes('tharavix');
+    
+    if (selectedTab === 'admin' && !isAdminEmail) {
+      setError('This appears to be a supplier account. Please use the Supplier login tab.');
+      return false;
+    }
+    
+    if (selectedTab === 'supplier' && isAdminEmail) {
+      setError('This appears to be an admin account. Please use the Admin login tab.');
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleLogin = async () => {
     setError('');
     
@@ -48,18 +64,25 @@ const Login = () => {
     
     try {
       console.log('Attempting Supabase login for:', email);
+      
+      // First validate the user role based on email and selected tab
+      if (!validateUserRole(email.trim(), activeTab)) {
+        setIsLoading(false);
+        return;
+      }
+      
       const { error: signInError } = await signIn(email.trim(), password);
       
       if (signInError) {
         console.error('Login error:', signInError);
         if (signInError.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please try again.');
+          setError('Invalid email or password. Please check your credentials and try again.');
         } else {
           setError(signInError.message);
         }
         toast.error('Login failed - check your credentials');
       } else {
-        toast.success('Login successful!');
+        toast.success(`Welcome back! Logged in as ${activeTab}`);
         navigate(from, { replace: true });
       }
     } catch (error: any) {
