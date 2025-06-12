@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import NotificationBell from '@/components/NotificationBell';
+import { useNotificationSync } from '@/hooks/useNotificationSync';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { 
   LayoutDashboard, 
@@ -29,6 +30,7 @@ const SupplierLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useSupabaseAuth();
+  useNotificationSync();
 
   // Determine user role from email (admin emails contain 'admin' or 'tharavix')
   const userRole = user?.email?.toLowerCase().includes('admin') || user?.email?.toLowerCase().includes('tharavix') ? 'admin' : 'supplier';
