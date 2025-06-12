@@ -182,6 +182,7 @@ const OrderTabsContainer: React.FC<OrderTabsContainerProps> = ({
         orders={ordersByStatus.pendingPayment}
         isLoading={queries.pendingPayment.isLoading}
         totalPages={queries.pendingPayment.data?.totalPages || 1}
+        totalRecords={queries.pendingPayment.data?.totalRecords}
         currentPage={currentPage}
         onPageChange={onPageChange}
         onEditOrder={onEditOrder}

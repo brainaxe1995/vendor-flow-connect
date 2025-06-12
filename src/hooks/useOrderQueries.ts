@@ -68,8 +68,9 @@ export const useOrderQueries = (searchTerm: string, currentPage: number) => {
     page: currentPage 
   });
   
+  // Fixed: Use 'pending' instead of 'pending-payment' for WooCommerce API compatibility
   const pendingPaymentQuery = useOrders({ 
-    status: 'pending-payment', 
+    status: 'pending', 
     search: searchTerm, 
     per_page: perPage,
     page: currentPage 

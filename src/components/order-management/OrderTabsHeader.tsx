@@ -45,7 +45,7 @@ const OrderTabsHeader: React.FC<OrderTabsHeaderProps> = ({ orderCounts }) => {
         Failed <Badge variant="secondary">{orderCounts.failed}</Badge>
       </TabsTrigger>
       <TabsTrigger value="pending-payment" className="flex items-center gap-2">
-        Payment <Badge variant="secondary">{orderCounts.pendingPayment}</Badge>
+        Pending Payment <Badge variant="secondary">{orderCounts.pendingPayment}</Badge>
       </TabsTrigger>
     </TabsList>
   );
