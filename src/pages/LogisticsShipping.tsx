@@ -46,7 +46,8 @@ const LogisticsShipping = () => {
     per_page: 1,
     page: 1,
     meta_key: primaryTrackingKey,
-    meta_compare: 'EXISTS'
+    meta_compare: '!=',
+    meta_value: ''
   });
 
   const queries = {

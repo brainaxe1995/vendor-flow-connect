@@ -23,6 +23,7 @@ export const useOrders = (params?: {
   search?: string;
   meta_key?: string;
   meta_compare?: string;
+  meta_value?: string;
 }) => {
   const { isConfigured } = useWooCommerceConfig();
   
