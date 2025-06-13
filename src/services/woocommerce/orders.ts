@@ -12,6 +12,7 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
     search?: string;
     meta_key?: string;
     meta_compare?: string;
+    meta_value?: string;
   } = {}): Promise<WooCommerceResponse<WooCommerceOrder[]>> {
     const queryParams = new URLSearchParams();
     
@@ -23,7 +24,7 @@ export class WooCommerceOrdersService extends BaseWooCommerceService {
     queryParams.append('context', 'edit');
     
     Object.entries(params).forEach(([key, value]) => {
-      if (value && key !== 'per_page' && key !== 'page') {
+      if (value !== undefined && key !== 'per_page' && key !== 'page') {
         queryParams.append(key, String(value));
       }
     });
